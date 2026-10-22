@@ -18,11 +18,6 @@ pluginManagement {
         // Note: Prefer "strictMaven()" over "maven { ... }" to reduce unnecessary repository lookups (i.e., reduce network calls)
 
         strictMaven(
-            "NeoForged",
-            "https://maven.neoforged.net/releases",
-            "net.neoforged"
-        )
-        strictMaven(
             "Fabric",
             "https://maven.fabricmc.net/",
         ) {
@@ -43,6 +38,5 @@ rootProject.name = "Akythera Engine"
 
 include(
     ":common",
-    ":neoforge",
     ":fabric",
 )

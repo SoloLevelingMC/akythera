@@ -36,14 +36,11 @@ public abstract class ModMixinPlugin implements IMixinConfigPlugin {
         boolean installed;
         Class<?> modPlatformCls;
 
+        // SoloLevelingMC fork: Fabric is the only platform left (the NeoForge module is removed).
         try {
             modPlatformCls = Class.forName("com.yesman.akythera.platform.fabric.FabricModChecker");
         } catch (ClassNotFoundException e) {
-            try {
-                modPlatformCls = Class.forName("com.yesman.akythera.platform.neoforged.NeoForgeModChecker");
-            } catch (ClassNotFoundException ex) {
-                throw new RuntimeException(ex);
-            }
+            throw new RuntimeException(e);
         }
 
         try {

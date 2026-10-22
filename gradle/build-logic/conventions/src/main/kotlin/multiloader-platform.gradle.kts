@@ -1,4 +1,4 @@
-// Configures shared Gradle setup between mod platform Gradle projects (e.g., neoforge, fabric),
+// Configures shared Gradle setup between mod platform Gradle projects (here only fabric),
 // which enables "multiloader-base" and mod publish plugins.
 //
 // Adds a dependency on ":common", and bundles all classes and
