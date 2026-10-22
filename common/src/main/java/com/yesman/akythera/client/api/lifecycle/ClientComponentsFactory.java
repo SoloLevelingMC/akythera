@@ -79,6 +79,14 @@ public final class ClientComponentsFactory extends ComponentsFactory {
             case UNKNOWN -> ComputeShaderSupport.UNSUPPORTED;
         };
 
+        // SoloLevelingMC fork: the compute shader sources are not shipped in this build (their assets are not
+        // redistributable). Without them every compute program would fail to load, so the compute path is turned
+        // off and the CPU fallbacks are used instead.
+        if (supportComputeShader != ComputeShaderSupport.UNSUPPORTED && !computeShaderSourcesBundled()) {
+            Akythera.LOGGER.warn("[Akythera] Compute shader sources are not bundled in this build; compute features are disabled");
+            supportComputeShader = ComputeShaderSupport.UNSUPPORTED;
+        }
+
         Akythera.LOGGER.info(
             "[Akythera] Graphics backend: {}, compute shader support type: {}", deviceInfo.backendName(), supportComputeShader.name()
         );
@@ -86,6 +94,12 @@ public final class ClientComponentsFactory extends ComponentsFactory {
         if (!supportComputeShader()) {
             Akythera.LOGGER.warn("Compute shader is unsupported in this device. Some features (frame acceleration, cloth simulation) are not supported");
         }
+    }
+
+    /// Whether the skinning compute shader, which every compute feature starts from, is on the class path.
+    private static boolean computeShaderSourcesBundled() {
+        return ClientComponentsFactory.class.getClassLoader()
+            .getResource("assets/" + Akythera.MODID + "/shaders/compute/vanilla_mesh_transformer.comp") != null;
     }
 
     /// Minecraft asks for a 3.3 core profile, so GL_MAJOR_VERSION reads 3.3 on every device and says
