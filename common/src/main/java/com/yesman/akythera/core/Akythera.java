@@ -162,6 +162,10 @@ public final class Akythera {
         AnimationLayerSignature.ENUM_MANAGER.loadEnum();
         ColliderType.ENUM_MANAGER.loadEnum();
         WeaponStance.ENUM_MANAGER.loadEnum();
+        // Slots name their group, so groups load first.
+        AbilitySlotGroup.ENUM_MANAGER.loadEnum();
+        AbilitySlot.ENUM_MANAGER.loadEnum();
+        AbilityTag.ENUM_MANAGER.loadEnum();
 
         // Pair logics reference the collider type constants, so they bind after the enum loads.
         CollisionDetectionLogics.registerBuiltInLogics();

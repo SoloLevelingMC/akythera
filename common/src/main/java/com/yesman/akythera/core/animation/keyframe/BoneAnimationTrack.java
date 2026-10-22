@@ -90,7 +90,9 @@ public record BoneAnimationTrack(List<Keyframe> keyframes) {
     public Transform getTransformAt(int keyframeStart, int keyframeEnd, float time) {
         Keyframe beginKf = keyframes.get(keyframeStart);
         Keyframe endKf = keyframes.get(keyframeEnd);
-        float delta = Mth.clamp((time - beginKf.timeStamp()) / (endKf.timeStamp() - beginKf.timeStamp()), 0.0F, 1.0F);
+        float span = endKf.timeStamp() - beginKf.timeStamp();
+        // A single keyframe (begin == end) spans no time: hold it, instead of dividing 0 by 0 into a NaN delta
+        float delta = span > 0.0F ? Mth.clamp((time - beginKf.timeStamp()) / span, 0.0F, 1.0F) : 0.0F;
 
         return Transform.lerp(beginKf.transform(), endKf.transform(), delta);
     }

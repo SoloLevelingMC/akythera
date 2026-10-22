@@ -342,6 +342,8 @@ public final class AbilitySystemComponent
     ///
     /// @param includeDetached whether tasks that declared [AbilityTask#endsWithAbility] false end too
     private void stopTasksOf(final AbilityInstance abilityInstance, final boolean includeDetached) {
+        if (runningTasks.isEmpty() && pendingTasks.isEmpty()) return;
+
         List<AbilityTaskHandle> candidates = new ArrayList<>(runningTasks);
         candidates.addAll(pendingTasks);
 
@@ -1262,10 +1264,13 @@ public final class AbilitySystemComponent
         tickCosts();
         tickHoldCounts();
 
-        runningTasks.addAll(pendingTasks);
-        pendingTasks.clear();
+        if (!pendingTasks.isEmpty()) {
+            runningTasks.addAll(pendingTasks);
+            pendingTasks.clear();
+        }
 
-        for (AbilityTaskHandle handle : new ArrayList<>(runningTasks)) {
+        // Most entities run no task: no copy for them, on every tick.
+        for (AbilityTaskHandle handle : runningTasks.isEmpty() ? List.<AbilityTaskHandle>of() : new ArrayList<>(runningTasks)) {
             // A task earlier in this pass may have ended this one.
             if (!handle.isValid()) continue;
 
