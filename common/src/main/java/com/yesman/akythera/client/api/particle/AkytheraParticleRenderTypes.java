@@ -11,8 +11,6 @@ public final class AkytheraParticleRenderTypes {
     /// [AkytheraMeshParticle]s, drawn by [AkytheraMeshParticleGroup].
     public static final ParticleRenderType MESH = new ParticleRenderType("AKYTHERA_MESH", "AM");
 
-    /// [AkytheraTrailParticle]s, drawn by [AkytheraTrailParticleGroup].
-    public static final ParticleRenderType TRAIL = new ParticleRenderType("AKYTHERA_TRAIL", "AT");
-
-    public static final List<ParticleRenderType> RENDER_ORDER = List.of(MESH, TRAIL);
+    // SoloLevelingMC fork: the TRAIL group went away with TrailRenderer, which needed compute shaders.
+    public static final List<ParticleRenderType> RENDER_ORDER = List.of(MESH);
 }

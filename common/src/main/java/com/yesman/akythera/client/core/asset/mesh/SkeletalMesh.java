@@ -3,12 +3,9 @@ package com.yesman.akythera.client.core.asset.mesh;
 import com.google.common.collect.ImmutableMap;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.yesman.akythera.client.api.lifecycle.ClientComponentsFactory;
 import com.yesman.akythera.client.core.asset.loader.MeshLoader;
 import com.yesman.akythera.client.core.asset.loader.VertexBuilder;
 import com.yesman.akythera.client.core.asset.physics.ClothPhysicsData;
-import com.yesman.akythera.client.core.shader.backend.setup.AnimationComputeShader;
-import com.yesman.akythera.client.core.shader.backend.setup.ClothComputeShader;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.asset.armature.Armature;
 import io.netty.buffer.ByteBuf;
@@ -63,14 +60,9 @@ public class SkeletalMesh implements Mesh<SkeletalMesh.SkeletalMeshPart> {
     /// strides are between 1-3, depending on [#deformationFromToIndices]
     protected final ByteBuf deformWeightIndices;
 
-    /// Buffers to be used in compute shader. Assigned only if compute shader is supported by device.
-    protected @Nullable AnimationComputeShader animationComputeShader;
-
-    /// The cloth this mesh carries, or null for none.
+    /// The cloth this mesh carries, or null for none. Read from the asset but never simulated in this
+    /// fork (no compute shaders): a mesh carrying cloth is not drawn in game, as before.
     protected final @Nullable ClothPhysicsData clothPhysics;
-
-    /// The cloth's GPU residency. Null without [#clothPhysics] or without device support for it.
-    protected @Nullable ClothComputeShader clothComputeShader;
 
     protected final MeshLoader.Metadata metadata;
 
@@ -135,12 +127,7 @@ public class SkeletalMesh implements Mesh<SkeletalMesh.SkeletalMeshPart> {
 
         meshParts = meshPartBuilder.build();
 
-        animationComputeShader = ClientComponentsFactory.getImpl().getAnimationComputeShaderSetup(meshBuilder);
-
         clothPhysics = meshBuilder.clothPhysics;
-        clothComputeShader = clothPhysics == null
-            ? null
-            : ClientComponentsFactory.getImpl().createClothComputeShader(this, clothPhysics.weights(), clothPhysics.offsetPairs());
     }
 
     /// Draw a mesh with mesh deformation, by the bone transform in a specific pose.
@@ -166,18 +153,8 @@ public class SkeletalMesh implements Mesh<SkeletalMesh.SkeletalMeshPart> {
         }
     }
 
-    /// The mesh's GPU residency for the skinning dispatch, or null when the device has no compute
-    /// support.
-    public @Nullable AnimationComputeShader getAnimationComputeShader() {
-        return animationComputeShader;
-    }
-
     public @Nullable ClothPhysicsData getClothPhysics() {
         return clothPhysics;
-    }
-
-    public @Nullable ClothComputeShader getClothComputeShader() {
-        return clothComputeShader;
     }
 
     /// Number of distinct vertex positions, the index space [SkeletalMeshPart#getPositionIndex]
@@ -244,9 +221,6 @@ public class SkeletalMesh implements Mesh<SkeletalMesh.SkeletalMeshPart> {
         for (SkeletalMeshPart meshPart : this.meshParts.values()) {
             meshPart.drawIndices.release();
         }
-
-        if (clothComputeShader != null) clothComputeShader.close();
-        if (animationComputeShader != null) animationComputeShader.close();
     }
 
     public class SkeletalMeshPart implements MeshPart {

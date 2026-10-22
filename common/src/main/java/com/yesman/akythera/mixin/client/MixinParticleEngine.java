@@ -2,7 +2,6 @@ package com.yesman.akythera.mixin.client;
 
 import com.yesman.akythera.client.api.particle.AkytheraMeshParticleGroup;
 import com.yesman.akythera.client.api.particle.AkytheraParticleRenderTypes;
-import com.yesman.akythera.client.api.particle.AkytheraTrailParticleGroup;
 import net.minecraft.client.Camera;
 import net.minecraft.client.particle.ParticleEngine;
 import net.minecraft.client.particle.ParticleGroup;
@@ -29,7 +28,6 @@ public abstract class MixinParticleEngine {
     @Inject(method = "createParticleGroup", at = @At("HEAD"), cancellable = true)
     private void akythera$createParticleGroup(final ParticleRenderType type, final CallbackInfoReturnable<ParticleGroup<?>> callback) {
         if (type == AkytheraParticleRenderTypes.MESH) callback.setReturnValue(new AkytheraMeshParticleGroup((ParticleEngine)(Object)this));
-        if (type == AkytheraParticleRenderTypes.TRAIL) callback.setReturnValue(new AkytheraTrailParticleGroup((ParticleEngine)(Object)this));
     }
 
     /// Extracts the groups of [AkytheraParticleRenderTypes] after vanilla's, in [AkytheraParticleRenderTypes#RENDER_ORDER].

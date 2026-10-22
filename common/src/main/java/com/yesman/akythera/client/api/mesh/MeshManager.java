@@ -4,13 +4,11 @@ import com.mojang.serialization.Codec;
 import com.yesman.akythera.api.asset.AssetAccessor;
 import com.yesman.akythera.api.asset.DynamicAssetManager;
 import com.yesman.akythera.api.lifecycle.ComponentsFactory;
-import com.yesman.akythera.client.api.lifecycle.ClientComponentsFactory;
 import com.yesman.akythera.client.core.asset.loader.MeshLoader;
 import com.yesman.akythera.client.core.asset.mesh.Mesh;
 import com.yesman.akythera.client.core.asset.mesh.SkeletalMesh;
 import com.yesman.akythera.client.core.asset.mesh.StaticMesh;
 import com.yesman.akythera.client.core.asset.mesh.VanillaModelBaker;
-import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.core.asset.loader.AssetLoader;
 import com.yesman.akythera.core.asset.loader.ResourceLoadingFailureException;
 import net.minecraft.resources.Identifier;
@@ -83,9 +81,6 @@ public final class MeshManager extends DynamicAssetManager<@NonNull Mesh<?>> {
 
     @Override
     public void onAssetReloaded() {
-        ClientComponentsFactory.getImpl().invalidateComputeShaderPrograms();
-        PatchModelRenderer.getInstance().releaseClothInstances();
-
         for (Mesh<?> mesh : loadedObjectsRegistry.values()) {
             // Explicit call to release buffers
             if (mesh != null) mesh.close();

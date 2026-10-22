@@ -12,22 +12,18 @@ import com.yesman.akythera.api.data.modularize.node.ScriptNode;
 import com.yesman.akythera.api.data.modularize.node.ScriptRecorder;
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.yesman.akythera.client.api.component.RenderableComponent;
-import com.yesman.akythera.client.api.lifecycle.ClientComponentsFactory;
 import com.yesman.akythera.client.core.asset.mesh.Mesh;
 import com.yesman.akythera.client.core.asset.mesh.SkeletalMesh;
 import com.yesman.akythera.client.core.asset.physics.ClothPhysicsData;
 import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
-import com.yesman.akythera.client.core.shader.backend.setup.ClothComputeShader;
 import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.asset.armature.Armature;
 import com.yesman.akythera.core.asset.armature.TransformSocket;
-import com.yesman.akythera.core.asset.physics.ArmaturePhysicsData;
 import com.yesman.akythera.core.blueprint.script.ScriptVariables;
 import com.yesman.akythera.core.math.Transform;
 import com.yesman.akythera.core.util.helper.Matrix4fUtils;
 import com.yesman.akythera.mixinaccessor.client.LivingEntityRenderStateAccessor;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
@@ -43,8 +39,9 @@ import org.jspecify.annotations.Nullable;
 /// armature are how those layers are rebuilt.
 ///
 /// A [SkeletalMesh] is skinned by [#armature]—the armature this component hangs off, not the patch's
-/// first—and sits in that armature's space, not its host's; one carrying [ClothPhysicsData] is
-/// simulated on top of that. [PatchModelRenderer] places either kind at its [#modelTransform].
+/// first—and sits in that armature's space, not its host's; one carrying [ClothPhysicsData] is not
+/// drawn in this fork, which has no cloth simulation. [PatchModelRenderer] places either kind at its
+/// [#modelTransform].
 ///
 /// Instantiated per host by [MeshComponentBlueprint], so a mesh can grow per-instance state its
 /// blueprint does not carry—a cloth's simulation is keyed by this instance, and so is its switch.
@@ -193,73 +190,40 @@ public final class MeshComponent implements RenderableComponent<LivingEntityRend
 
         if (animationPose == null || armatureAsset == null) return;
 
-        ClothPhysicsData cloth = skeletalMesh.getClothPhysics();
-        ClothComputeShader clothShader = skeletalMesh.getClothComputeShader();
-        boolean computeSkinning = skeletalMesh.getAnimationComputeShader() != null;
+        // SoloLevelingMC fork: cloth needs the compute shaders this build does not have. A mesh carrying cloth
+        // stays undrawn, as it was without compute support; every other mesh is skinned on the CPU.
+        if (skeletalMesh.getClothPhysics() != null) return;
 
-        if (cloth != null && clothShader != null) {
-            AssetAccessor<? extends ArmaturePhysicsData> bodies = cloth.armaturePhysics();
+        Armature resolvedArmature = armatureAsset.get();
+        Matrix4f[] boundTransforms = animationPose.getForwardBoundTransforms(
+            armatureAsset, Matrix4fUtils.allocateMatrixArray(resolvedArmature.getBoneCount())
+        );
 
-            PatchModelRenderer.getInstance().submitClothMesh(
-                this,
-                clothShader,
-                armatureAsset,
-                animationPose,
-                bodies == null ? null : bodies.getOrHandleException(Akythera.LOGGER::error),
-                cloth.parameters(),
-                renderType,
-                poseStack.last(),
-                Minecraft.getInstance().gameRenderer.mainCamera().position(),
-                lightCoords,
-                modelDraw.overlayCoords(),
-                modelDraw.tintedColor(),
-                state.outlineColor
-            );
-        } else if (cloth != null) {
-            // TODO: simulate under Iris once an Iris cloth transformer exists
-            if (computeSkinning && ClientComponentsFactory.getImpl().getShaderBackend() == ClientComponentsFactory.ShaderBackend.IRIS) {
-                PatchModelRenderer.getInstance().submitSkinnedMesh(
-                    skeletalMesh, armatureAsset, animationPose, renderType, poseStack.last(),
-                    lightCoords, modelDraw.overlayCoords(), modelDraw.tintedColor(), state.outlineColor
+        resolvedArmature.boundBackwardTransform(boundTransforms);
+
+        submitNodeCollector.submitCustomGeometry(
+            poseStack,
+            renderType,
+            (pose, buffer) -> {
+                // SkeletalMesh#drawPosed reads a pose stack; this one carries the submitted pose alone
+                PoseStack skinningStack = new PoseStack();
+                skinningStack.last().pose().set(pose.pose());
+                skinningStack.last().normal().set(pose.normal());
+
+                skeletalMesh.drawPosed(
+                    skinningStack,
+                    buffer,
+                    Mesh.DrawingFunction.trianglesAsQuads(Mesh.DrawingFunction.NEW_ENTITY),
+                    lightCoords,
+                    1.0F,
+                    1.0F,
+                    1.0F,
+                    1.0F,
+                    modelDraw.overlayCoords(),
+                    boundTransforms
                 );
             }
-        } else if (computeSkinning) {
-            PatchModelRenderer.getInstance().submitSkinnedMesh(
-                skeletalMesh, armatureAsset, animationPose, renderType, poseStack.last(),
-                lightCoords, modelDraw.overlayCoords(), modelDraw.tintedColor(), state.outlineColor
-            );
-        } else {
-            Armature resolvedArmature = armatureAsset.get();
-            Matrix4f[] boundTransforms = animationPose.getForwardBoundTransforms(
-                armatureAsset, Matrix4fUtils.allocateMatrixArray(resolvedArmature.getBoneCount())
-            );
-
-            resolvedArmature.boundBackwardTransform(boundTransforms);
-
-            submitNodeCollector.submitCustomGeometry(
-                poseStack,
-                renderType,
-                (pose, buffer) -> {
-                    // SkeletalMesh#drawPosed reads a pose stack; this one carries the submitted pose alone
-                    PoseStack skinningStack = new PoseStack();
-                    skinningStack.last().pose().set(pose.pose());
-                    skinningStack.last().normal().set(pose.normal());
-
-                    skeletalMesh.drawPosed(
-                        skinningStack,
-                        buffer,
-                        Mesh.DrawingFunction.trianglesAsQuads(Mesh.DrawingFunction.NEW_ENTITY),
-                        lightCoords,
-                        1.0F,
-                        1.0F,
-                        1.0F,
-                        1.0F,
-                        modelDraw.overlayCoords(),
-                        boundTransforms
-                    );
-                }
-            );
-        }
+        );
     }
 
     /// The type this mesh draws with: what [#renderTypeGetter] answers, else the entity's own.
