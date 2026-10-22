@@ -1,5 +1,6 @@
 package com.yesman.akythera.mixin.client;
 
+import com.yesman.akythera.client.api.component.impl.ModelPartPoseBinder;
 import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.client.core.renderer.collider.ColliderDebugRenderer;
 import com.yesman.akythera.mixinaccessor.client.LivingEntityRenderStateAccessor;
@@ -32,6 +33,9 @@ public abstract class MixinLivingEntityRenderState implements LivingEntityRender
 
     @Unique
     private boolean akythera$armaturePlaced;
+
+    @Unique
+    private ModelPartPoseBinder.@Nullable Snapshot akythera$partPose;
 
     @Unique
     private final Map<EquipmentSlot, Map<ItemDisplayContext, ItemStackRenderState>> epicfight$itemStates =
@@ -75,6 +79,16 @@ public abstract class MixinLivingEntityRenderState implements LivingEntityRender
     @Unique @Override
     public void akythera$setArmaturePlaced(boolean armaturePlaced) {
         akythera$armaturePlaced = armaturePlaced;
+    }
+
+    @Unique @Override
+    public ModelPartPoseBinder.@Nullable Snapshot akythera$getPartPose() {
+        return akythera$partPose;
+    }
+
+    @Unique @Override
+    public void akythera$setPartPose(ModelPartPoseBinder.@Nullable Snapshot partPose) {
+        akythera$partPose = partPose;
     }
 
     @Unique @Override

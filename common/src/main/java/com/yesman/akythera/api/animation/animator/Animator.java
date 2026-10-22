@@ -112,6 +112,12 @@ public interface Animator {
         return false;
     }
 
+    /// How much the montages being played weigh in the pose, from 0 (none plays) to 1 (fully faded in).
+    /// Follows the fade in and fade out of [AnimationMontagePlayer#getWeight].
+    default float getMontageWeight() {
+        return 0.0F;
+    }
+
     /// Returns a player for [AnimationMontage]
     ///
     /// Montage players are both in client and server, to synchronize playing

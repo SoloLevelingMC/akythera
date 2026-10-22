@@ -7,6 +7,7 @@ import com.yesman.akythera.api.world.patch.item.component.ReplaceAnimations;
 import com.yesman.akythera.api.world.patch.item.component.WeaponStanceVariationAdapter;
 import com.yesman.akythera.client.api.component.impl.ItemInSlotRendererBlueprint;
 import com.yesman.akythera.client.api.component.impl.MeshComponentBlueprint;
+import com.yesman.akythera.client.api.component.impl.ModelPartPoseBinder;
 import com.yesman.akythera.client.api.component.impl.PALPoseBinder;
 import com.yesman.akythera.client.api.component.impl.SkinnedArmorRendererBlueprint;
 import com.yesman.akythera.core.Akythera;
@@ -61,6 +62,9 @@ public final class AkytheraComponentBlueprints {
 
     public static final Holder<MapCodec<? extends ComponentBlueprint<?, ?>>> PAL_POSE_BINDER =
         ENTITY_PATCH_REGISTRAR.register("pal_pose_binder", () -> PALPoseBinder.CODEC);
+
+    public static final Holder<MapCodec<? extends ComponentBlueprint<?, ?>>> MODEL_PART_POSE_BINDER =
+        ENTITY_PATCH_REGISTRAR.register("model_part_pose_binder", () -> ModelPartPoseBinder.CODEC);
 
     public static final Holder<MapCodec<? extends ComponentBlueprint<?, ?>>> MESH =
         ENTITY_PATCH_REGISTRAR.register("mesh", () -> MeshComponentBlueprint.CODEC);
