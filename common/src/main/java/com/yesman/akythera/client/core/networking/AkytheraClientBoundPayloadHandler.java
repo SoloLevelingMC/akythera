@@ -5,8 +5,11 @@ import com.yesman.akythera.api.world.patch.AkytheraPatches;
 import com.yesman.akythera.core.networking.PayloadContext;
 import com.yesman.akythera.api.world.ability.AbilityEffect;
 import com.yesman.akythera.api.world.ability.AbilityInstance;
+import com.yesman.akythera.api.world.ability.AbilityResource;
+import com.yesman.akythera.api.world.ability.AbilityResources;
 import com.yesman.akythera.api.world.ability.AbilityState;
 import com.yesman.akythera.api.world.ability.AbilitySystemComponent;
+import com.yesman.akythera.api.world.ability.MirroredAbility;
 import com.yesman.akythera.api.world.ability.SystematicAbility;
 import com.yesman.akythera.client.api.gui.BlueprintWidgets;
 import com.yesman.akythera.client.api.gui.HudManager;
@@ -21,6 +24,7 @@ import com.yesman.akythera.core.math.Transform;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEffectSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEquipmentSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityLifecycle;
+import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityResourceSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityStateSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityTagSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundClearWidgetHuds;
@@ -83,7 +87,8 @@ public interface AkytheraClientBoundPayloadHandler {
         });
     }
 
-    /// Mirrors one slot's equipment onto the client's copy of the component.
+    /// Mirrors one slot's equipment onto the client's copy of the component. A slot holding an ability
+    /// Java built gets a [MirroredAbility].
     ///
     /// Skipped when the slot already holds the same entry.
     static void handleAbilityEquipmentSync(
@@ -101,7 +106,7 @@ public interface AkytheraClientBoundPayloadHandler {
 
             if (component == null) return;
 
-            if (payload.ability().isEmpty()) {
+            if (!payload.held()) {
                 component.removeAbility(payload.slot());
 
                 if (isLocalPlayer(entity)) AbilityInputBinder.unbind(payload.slot());
@@ -110,6 +115,18 @@ public interface AkytheraClientBoundPayloadHandler {
             }
 
             AbilityInstance held = component.getInstance(payload.slot());
+
+            if (payload.ability().isEmpty()) {
+                if (held != null && held.getAbility() instanceof MirroredAbility) return;
+
+                AbilityInstance equipped = component.giveAbility(payload.slot(), new MirroredAbility());
+
+                // A snapshot carries the current flag. A mirror binds no key: the server's own
+                // input path drives the ability.
+                if (equipped != null && payload.activated()) equipped.applyActivated(component);
+
+                return;
+            }
 
             if (held != null && held.getAbility() != null
                 && payload.ability().get().equals(held.getAbility().getBlueprintKey())) {
@@ -234,7 +251,7 @@ public interface AkytheraClientBoundPayloadHandler {
         // A slot this client holds nothing in: the application's ability never reached it.
         if (payload.source().isPresent() && source == null) return;
 
-        AbilityEffect effect = resolveEffect(payload.effectId(), source, entity.level().registryAccess());
+        AbilityEffect effect = resolveEffect(payload, source, entity.level().registryAccess());
 
         if (effect == null) {
             Akythera.LOGGER.warn("Unknown ability effect {}", payload.effectId());
@@ -252,13 +269,16 @@ public interface AkytheraClientBoundPayloadHandler {
         );
     }
 
-    /// The effect `effectId` names: first among the source ability's own settings, the only place a
-    /// Java built effect can be found, then in the data pack registry.
+    /// The effect the payload names: first among the source ability's own settings, then in the data
+    /// pack registry. A mirrored Java built ability declares nothing the client can look up, so its
+    /// effect is rebuilt from the shape the payload carries, with no modifiers: a client never applies one.
     private static @Nullable AbilityEffect resolveEffect(
-        final Identifier effectId,
+        final ClientBoundAbilityEffectSync payload,
         final @Nullable AbilityInstance source,
         final RegistryAccess registryAccess
     ) {
+        Identifier effectId = payload.effectId();
+
         if (source != null && source.getAbility() instanceof SystematicAbility<?> systematic) {
             AbilityEffect cooldown = systematic.getCooldownEffect();
 
@@ -269,9 +289,39 @@ public interface AkytheraClientBoundPayloadHandler {
             if (duration != null && duration.getId().equals(effectId)) return duration;
         }
 
-        return registryAccess.lookup(AkytheraRegistries.DataPack.ABILITY_EFFECT_KEY)
+        AbilityEffect registered = registryAccess.lookup(AkytheraRegistries.DataPack.ABILITY_EFFECT_KEY)
             .flatMap(registry -> registry.getOptional(effectId))
             .orElse(null);
+
+        if (registered != null || source == null || !(source.getAbility() instanceof MirroredAbility)) {
+            return registered;
+        }
+
+        try {
+            return new AbilityEffect(
+                effectId, java.util.List.of(), payload.applicationType(), payload.duration(), payload.maxStack()
+            );
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
+    }
+
+    /// Stores the server's value and max of one of the local player's resources.
+    static void handleAbilityResourceSync(
+        final ClientBoundAbilityResourceSync payload,
+        final PayloadContext context
+    ) {
+        AbilityResource resource = AbilityResources.get(payload.resource());
+
+        if (resource == null) {
+            Akythera.LOGGER.warn("Unknown ability resource {}", payload.resource());
+
+            return;
+        }
+
+        AbilitySystemComponent component = componentOf(entityOf(payload.entityId()));
+
+        if (component != null) component.mirrorResource(resource, payload.value(), payload.max());
     }
 
     /// Starts the play the server sent. A data pack cue this client does not know, or a cue whose ability

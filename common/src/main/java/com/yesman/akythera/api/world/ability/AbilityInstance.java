@@ -136,6 +136,14 @@ public final class AbilityInstance {
         typed().onRecast(abilitySystemComponent, this, state);
     }
 
+    /// Runs [Ability#tick] once. Server side, driven by the [AbilitySystemComponent].
+    @ApiStatus.Internal
+    public void tickAbility(final AbilitySystemComponent abilitySystemComponent) {
+        if (ability == null) return;
+
+        typed().tick(abilitySystemComponent, this, state);
+    }
+
     /// Re-requests an ability that is already running.
     ///
     /// @return whether the ability was running

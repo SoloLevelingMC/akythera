@@ -18,36 +18,21 @@ import org.jspecify.annotations.Nullable;
 ///
 /// Nothing travels from client to server unless the state opts in by overriding
 /// [#serverBoundCodec]: whatever that codec reads, a client controls.
+///
+/// Every sync method defaults to "no sync": a state that lives on the server only declares its
+/// fields and nothing else. A state that syncs overrides [#streamCodec], [#checkDirtyToSend],
+/// [#copyState] and [#decodeInto] together.
 @ScriptType
 public interface AbilityState {
     /// The state an ability that declares no variables receives: nothing to sync, never dirty.
     AbilityState EMPTY = new AbilityState() {
-        @Override
-        public @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> streamCodec() {
-            return null;
-        }
-
-        @Override
-        public boolean checkDirtyToSend(final AbilityState previous) {
-            return false;
-        }
-
-        @Override
-        public void copyState(final AbilityState from) {
-
-        }
-
-        @Override
-        public void decodeInto(
-            final PacketFlow flow,
-            final RegistryFriendlyByteBuf buffer,
-            final Level level
-        ) {
-
-        }
     };
 
-    @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> streamCodec();
+    /// The codec both directions use unless one is overridden. Null by default: the state never
+    /// leaves the side that owns it.
+    default @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> streamCodec() {
+        return null;
+    }
 
     /// The fields a client may write into the server's state when it triggers the ability. Null by
     /// default, so a state never accepts client input it did not explicitly ask for.
@@ -60,18 +45,25 @@ public interface AbilityState {
     }
 
     /// Whether any field the client bound codec carries differs from `previous`, the last state
-    /// that was sent.
-    boolean checkDirtyToSend(final AbilityState previous);
+    /// that was sent. False by default, so a state with no codec is never sent.
+    default boolean checkDirtyToSend(final AbilityState previous) {
+        return false;
+    }
 
-    /// Copies `from`'s values into this state in place.
-    void copyState(final AbilityState from);
+    /// Copies `from`'s values into this state in place. Does nothing by default: only the sync
+    /// baseline and an atomic decode copy a state.
+    default void copyState(final AbilityState from) {
 
-    /// Reads what the `flow` codec wrote into this state in place.
+    }
+
+    /// Reads what the `flow` codec wrote into this state in place. Reads nothing by default.
     ///
     /// Every field that codec leaves out keeps its current value.
     ///
     /// @param level resolves entity ids, which a codec alone cannot
-    void decodeInto(PacketFlow flow, RegistryFriendlyByteBuf buffer, Level level);
+    default void decodeInto(final PacketFlow flow, final RegistryFriendlyByteBuf buffer, final Level level) {
+
+    }
 
     /// Encodes `state` through its `flow` codec on the calling thread. Empty when that direction has
     /// no codec.

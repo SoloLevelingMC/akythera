@@ -23,6 +23,7 @@ import com.yesman.akythera.core.reflection.ScriptFunction;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEffectSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEquipmentSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityLifecycle;
+import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityResourceSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityStateSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityTagSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundPlayAbilityCue;
@@ -36,6 +37,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -88,13 +90,24 @@ public final class AbilitySystemComponent
     /// Whether this component takes part, see [PatchComponent#isEnabled].
     private boolean enabled = true;
 
-    /// Equips each owner's loadout as it joins a level, and hands a new tracker the owner's ability state.
+    /// Per resource: the refill delay and the last values sent to the owner on the server, the values
+    /// received on the client. Filled on first use.
+    private final Map<AbilityResource, ResourceTracker> resourceTrackers = new IdentityHashMap<>();
+
+    /// Equips each owner's loadout as it joins a level, hands a new tracker the owner's ability state,
+    /// and hands a player rejoining a level, whose client rebuilt its own entity, its own state again.
     @ApiStatus.Internal
     public static void registerEvents() {
         BuiltInEventHooks.Entity.SPAWNED.registerEvent(event -> {
             @Nullable AbilitySystemComponent component = event.getEntityPatch().getComponent(AbilitySystemComponent.class);
 
-            if (component != null) component.equipPendingLoadout();
+            if (component == null) return;
+
+            component.equipPendingLoadout();
+
+            if (component.owner.isLogicalServer() && component.owner.getOriginal() instanceof ServerPlayer self) {
+                component.sendSnapshotTo(self);
+            }
         });
 
         BuiltInEventHooks.Entity.TRACKING_START.registerEvent(event -> {
@@ -182,9 +195,7 @@ public final class AbilitySystemComponent
 
         // Captured and sent before unequip, which nulls the ability and runs callbacks of its own.
         if (released != null) {
-            sendScoped(released, new ClientBoundAbilityEquipmentSync(
-                owner.getOriginal().getId(), slot, Optional.empty(), false
-            ));
+            sendScoped(released, ClientBoundAbilityEquipmentSync.released(owner.getOriginal().getId(), slot));
         }
 
         stopTasksOf(instance, true);
@@ -487,6 +498,23 @@ public final class AbilitySystemComponent
         return null;
     }
 
+    /// The first timer recharging `abilityInstance`, whatever its effect, or null while nothing has
+    /// started one.
+    ///
+    /// Works on both sides: a client reads the copy the server sent, including for an ability Java
+    /// built, which the client holds as a [MirroredAbility].
+    public @Nullable AbilityEffectInstance getCooldown(final AbilityInstance abilityInstance) {
+        for (List<AbilityEffectInstance> live : effectInstances.values()) {
+            for (AbilityEffectInstance held : live) {
+                if (held.getRole() == AbilityEffectInstance.Role.COOLDOWN && held.getSource() == abilityInstance) {
+                    return held;
+                }
+            }
+        }
+
+        return null;
+    }
+
     /// The timer recharging `abilityInstance`, started on first ask.
     public AbilityEffectInstance getOrCreateCooldown(
         final AbilityEffect effect,
@@ -561,6 +589,19 @@ public final class AbilitySystemComponent
             if (!held.isActivated() || activationTypeOf(held) != ActivationType.HOLD) continue;
 
             held.setHoldingTicks(held.getHoldingTicks() + 1);
+        }
+    }
+
+    /// Runs [Ability#tick] for every instance that is activated or carries a state of its own.
+    private void tickAbilities() {
+        for (Map.Entry<AbilitySlot, AbilityInstance> entry : new ArrayList<>(instances.entrySet())) {
+            AbilityInstance held = entry.getValue();
+
+            // An earlier tick in this pass may have replaced or released this slot.
+            if (instances.get(entry.getKey()) != held || held.getAbility() == null) continue;
+            if (!held.isActivated() && held.getState() == AbilityState.EMPTY) continue;
+
+            held.tickAbility(this);
         }
     }
 
@@ -851,11 +892,17 @@ public final class AbilitySystemComponent
     /// Sends `tracker` everything it needs to mirror this owner: the tags it carries, each filled
     /// slot with its current activation and state, the live plays synced to late trackers, then every live
     /// effect application.
+    ///
+    /// `tracker` may be the owner itself, whose client gets what [InstantiationScope#reachesOwner]
+    /// allows, and its synced resources again on the next tick.
     @ApiStatus.Internal
     public void sendSnapshotTo(final ServerPlayer tracker) {
         if (!owner.isLogicalServer()) return;
 
         int entityId = owner.getOriginal().getId();
+        boolean self = tracker == owner.getOriginal();
+
+        if (self) resourceTrackers.values().forEach(ResourceTracker::forgetSent);
 
         // Tags first: a client validating against them must not see an ability before its tags.
         for (AbilityTag tag : ownerTags.keySet()) {
@@ -866,17 +913,14 @@ public final class AbilitySystemComponent
         for (Map.Entry<AbilitySlot, AbilityInstance> entry : instances.entrySet()) {
             Ability<?> ability = entry.getValue().getAbility();
 
-            if (ability == null || ability.getBlueprintKey() == null) continue;
-            if (!ability.getInstantiationScope().reachesTrackers()) continue;
+            if (ability == null || !reaches(scopeOf(ability), self)) continue;
 
-            NetworkingHelper.getInstance().sendToClient(tracker, new ClientBoundAbilityEquipmentSync(
-                entityId,
-                entry.getKey(),
-                Optional.of(ability.getBlueprintKey()),
-                entry.getValue().isActivated()
+            NetworkingHelper.getInstance().sendToClient(tracker, ClientBoundAbilityEquipmentSync.of(
+                entityId, entry.getKey(), ability, entry.getValue().isActivated()
             ));
 
-            byte[] state = entry.getValue().isStateSyncFailed()
+            // A client mirrors a Java built ability with no state to read into.
+            byte[] state = entry.getValue().isStateSyncFailed() || ability.getBlueprintKey() == null
                 ? null
                 : encodeState(entry.getValue(), entry.getValue().getState());
 
@@ -889,7 +933,7 @@ public final class AbilitySystemComponent
         // After the slots: a play names its ability by slot.
         for (AbilityCue cue : cues) {
             if (!cue.isValid() || !cue.getScript().isSyncedToLateTrackers()) continue;
-            if (!cueScopeOf(cue).reachesTrackers()) continue;
+            if (!reaches(cueScopeOf(cue), self)) continue;
 
             ClientBoundPlayAbilityCue payload = playPayloadOf(cue);
 
@@ -901,7 +945,7 @@ public final class AbilitySystemComponent
             AbilityInstance source = instance.getSource();
 
             if (source != null
-                && (source.getAbility() == null || !scopeOf(source.getAbility()).reachesTrackers())) {
+                && (source.getAbility() == null || !reaches(scopeOf(source.getAbility()), self))) {
                 continue;
             }
 
@@ -910,20 +954,21 @@ public final class AbilitySystemComponent
         }
     }
 
+    /// Whether a client reached by `scope` holds the ability: the owner's own client when `self`, a
+    /// tracking client otherwise.
+    private static boolean reaches(final InstantiationScope scope, final boolean self) {
+        return self ? scope.reachesOwner() : scope.reachesTrackers();
+    }
+
     /// Sends `payload` to whichever clients instantiate `ability`.
-    ///
-    /// An ability Java built has no blueprint key, so it cannot be named on the wire and never
-    /// leaves the server.
     private void sendScoped(final Ability<?> ability, final CustomPacketPayload payload) {
         sendToScope(scopeOf(ability), payload);
     }
 
-    /// An ability Java built has no blueprint key, so it cannot be named on the wire and never
-    /// leaves the server.
+    /// Who holds `ability` besides the server. An ability Java built has no blueprint key, and is
+    /// named by its slot instead: the clients its scope reaches hold a [MirroredAbility] there.
     private static InstantiationScope scopeOf(final Ability<?> ability) {
-        return ability.getBlueprintKey() == null
-            ? InstantiationScope.SERVER_ONLY
-            : ability.getInstantiationScope();
+        return ability.getInstantiationScope();
     }
 
     private void sendToScope(final InstantiationScope scope, final CustomPacketPayload payload) {
@@ -943,12 +988,7 @@ public final class AbilitySystemComponent
         final Ability<?> ability,
         final boolean activated
     ) {
-        sendScoped(ability, new ClientBoundAbilityEquipmentSync(
-            owner.getOriginal().getId(),
-            slot,
-            ability.getBlueprintKey() == null ? Optional.empty() : Optional.of(ability.getBlueprintKey()),
-            activated
-        ));
+        sendScoped(ability, ClientBoundAbilityEquipmentSync.of(owner.getOriginal().getId(), slot, ability, activated));
     }
 
     /// Tells the tracking clients how `slot`'s activation changed.
@@ -984,7 +1024,9 @@ public final class AbilitySystemComponent
         Ability<?> ability = instance.getAbility();
         AbilityState state = instance.getState();
 
-        if (ability == null || state.clientBoundCodec() == null || instance.isStateSyncFailed()) return;
+        // A Java built ability is mirrored without its state, which never leaves the server.
+        if (ability == null || ability.getBlueprintKey() == null) return;
+        if (state.clientBoundCodec() == null || instance.isStateSyncFailed()) return;
         if (!state.checkDirtyToSend(instance.getPrevState())) return;
 
         byte[] encoded = encodeState(instance, state);
@@ -1244,6 +1286,154 @@ public final class AbilitySystemComponent
     }
 
     // ***************************************************************
+    // Resources
+    // ***************************************************************
+
+    /// Restarts the refill delay of `resource`, see [AbilityResource.Regeneration]. A spend through
+    /// [AbilityResource#consume] already does; call this for an action that should hold the refill
+    /// back without spending. Server side only.
+    public void restartRegenDelay(final AbilityResource resource) {
+        if (!owner.isLogicalServer()) return;
+
+        trackerOf(resource).ticksSinceSpent = 0;
+    }
+
+    /// Lets `resource` refill from the next tick on, as if its delay had run out. Server side only.
+    public void clearRegenDelay(final AbilityResource resource) {
+        if (!owner.isLogicalServer()) return;
+
+        trackerOf(resource).ticksSinceSpent = Integer.MAX_VALUE;
+    }
+
+    /// The owner's value of `resource`: read live on the server, the last value the server sent on
+    /// the owner's client, see [AbilityResource#syncThreshold]. NaN on a client that was sent nothing.
+    public float getResourceValue(final AbilityResource resource) {
+        if (owner.isLogicalServer()) return resource.read(owner);
+
+        ResourceTracker tracker = resourceTrackers.get(resource);
+
+        return tracker == null ? Float.NaN : tracker.value;
+    }
+
+    /// The owner's max of `resource`, read and sent like [#getResourceValue].
+    public float getResourceMax(final AbilityResource resource) {
+        if (owner.isLogicalServer()) return resource.max(owner);
+
+        ResourceTracker tracker = resourceTrackers.get(resource);
+
+        return tracker == null ? Float.NaN : tracker.max;
+    }
+
+    /// Stores what the server sent for `resource`. Client side only.
+    @ApiStatus.Internal
+    public void mirrorResource(final AbilityResource resource, final float value, final float max) {
+        if (owner.isLogicalServer()) return;
+
+        ResourceTracker tracker = trackerOf(resource);
+        tracker.value = value;
+        tracker.max = max;
+    }
+
+    private ResourceTracker trackerOf(final AbilityResource resource) {
+        return resourceTrackers.computeIfAbsent(resource, _ -> new ResourceTracker());
+    }
+
+    /// Refills and sends every registered resource that asks for it, see [AbilityResources#trackedResources].
+    private void tickResources() {
+        List<AbilityResource> tracked = AbilityResources.trackedResources();
+
+        if (tracked.isEmpty()) return;
+
+        for (AbilityResource resource : tracked) {
+            if (!resource.appliesTo(owner)) continue;
+
+            ResourceTracker tracker = trackerOf(resource);
+            AbilityResource.Regeneration regeneration = resource.regeneration();
+
+            if (regeneration != null) regenerate(resource, regeneration, tracker);
+
+            if (resource.syncThreshold() >= 0.0F && owner.getOriginal() instanceof ServerPlayer self) {
+                syncResource(self, resource, tracker);
+            }
+        }
+    }
+
+    /// One tick of `regeneration`: the value is brought back under a dropped max, then, past the
+    /// delay, raised by one tick's amount.
+    private void regenerate(
+        final AbilityResource resource,
+        final AbilityResource.Regeneration regeneration,
+        final ResourceTracker tracker
+    ) {
+        float max = resource.max(owner);
+
+        // A zero move is bounded by the resource's own clamp.
+        if (resource.read(owner) > max) resource.add(owner, 0.0F);
+
+        if (regeneration.isSuspended(owner)) {
+            tracker.ticksSinceSpent = 0;
+
+            return;
+        }
+
+        if (tracker.ticksSinceSpent < Integer.MAX_VALUE) tracker.ticksSinceSpent++;
+
+        if (tracker.ticksSinceSpent < regeneration.delayTicks(owner)) return;
+
+        float value = resource.read(owner);
+
+        if (value >= max) return;
+
+        float amount = regeneration.amountPerTick(owner, value, max);
+
+        if (amount > 0.0F) resource.add(owner, amount);
+    }
+
+    /// Sends `resource` to the owner's client when it moved by at least its threshold since the last
+    /// send, or reached either end.
+    private void syncResource(final ServerPlayer self, final AbilityResource resource, final ResourceTracker tracker) {
+        float value = resource.read(owner);
+        float max = resource.max(owner);
+
+        if (!tracker.isWorthSending(value, max, resource.syncThreshold())) return;
+
+        Identifier identifier = AbilityResources.getId(resource);
+
+        if (identifier == null) return;
+
+        NetworkingHelper.getInstance().sendToClient(
+            self, new ClientBoundAbilityResourceSync(owner.getOriginal().getId(), identifier, value, max)
+        );
+
+        tracker.value = value;
+        tracker.max = max;
+    }
+
+    /// One resource's bookkeeping on one owner.
+    private static final class ResourceTracker {
+        /// Ticks since the last spend, saturating. Server side only.
+        private int ticksSinceSpent;
+
+        /// The last values sent on the server, the last received on the client. NaN before any.
+        private float value = Float.NaN;
+        private float max = Float.NaN;
+
+        private void forgetSent() {
+            value = Float.NaN;
+            max = Float.NaN;
+        }
+
+        private boolean isWorthSending(final float newValue, final float newMax, final float threshold) {
+            if (Float.isNaN(value) || Float.isNaN(max)) return true;
+            if (newValue == value && newMax == max) return false;
+            if (Math.abs(newValue - value) >= threshold || Math.abs(newMax - max) >= threshold) return true;
+
+            // Reaching either end is always news.
+            return newValue <= 0.0F || newValue >= newMax;
+        }
+    }
+
+    // ***************************************************************
     // [TickableDynamicComponent]
     // ***************************************************************
 
@@ -1263,6 +1453,7 @@ public final class AbilitySystemComponent
         tickEffects();
         tickCosts();
         tickHoldCounts();
+        tickAbilities();
 
         if (!pendingTasks.isEmpty()) {
             runningTasks.addAll(pendingTasks);
@@ -1289,6 +1480,8 @@ public final class AbilitySystemComponent
                 terminate(handle, false);
             }
         }
+
+        tickResources();
 
         // Last, so every write this tick made leaves on this tick.
         instances.forEach(this::flushState);

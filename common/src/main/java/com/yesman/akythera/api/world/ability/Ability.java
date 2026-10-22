@@ -14,7 +14,9 @@ import org.jspecify.annotations.Nullable;
 public abstract class Ability<S extends AbilityState> {
     /// The datapack entry that built this ability, or null when Java did.
     ///
-    /// An ability with no key cannot be named on the wire, so it never leaves the server.
+    /// An ability with no key cannot be rebuilt on a client. Its slot names it on the wire instead:
+    /// the clients its [#getInstantiationScope] reaches hold a [MirroredAbility] there, which follows
+    /// the lifecycle and the cooldowns the server sends, and never its state.
     private @Nullable ResourceKey<AbilityBlueprint> blueprintKey;
 
     public @Nullable ResourceKey<AbilityBlueprint> getBlueprintKey() {
@@ -63,6 +65,18 @@ public abstract class Ability<S extends AbilityState> {
     /// Called when this ability is equipped into a slot.
     @BlueprintFunction(graphType = ScriptFunction.BlueprintGraphType.EVENT_GRAPH)
     public void onEquipped(
+        final AbilitySystemComponent abilitySystemComponent,
+        final AbilityInstance abilityInstance,
+        final S abilityState
+    ) {
+
+    }
+
+    /// Called once per server tick for every equipped instance that is activated or carries a
+    /// state of its own, after the owner's effects and costs have ticked and before its tasks do.
+    ///
+    /// Server side only. Whatever it writes into `abilityState` is synced at the end of the same tick.
+    public void tick(
         final AbilitySystemComponent abilitySystemComponent,
         final AbilityInstance abilityInstance,
         final S abilityState
