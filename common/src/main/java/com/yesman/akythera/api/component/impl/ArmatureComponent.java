@@ -123,7 +123,9 @@ public class ArmatureComponent
         //
         // Time only. The skeleton itself is built on demand, in [#ensureServerPose].
         if (owner.logicalSide() == LogicalSide.SERVER) {
-            getAnimator().update(SERVER_FRAME_TIME, 1.0F);
+            // The entity's animation time scale (EntityPatch#setAnimationTimeScale) applies here, as on a client.
+            float frameTime = owner instanceof EntityPatch<?> entityPatch ? entityPatch.consumeAnimationTime(SERVER_FRAME_TIME) : SERVER_FRAME_TIME;
+            if (frameTime > 0.0F) getAnimator().update(frameTime, 1.0F);
         }
 
         getAnimator().tick();

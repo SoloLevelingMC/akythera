@@ -66,6 +66,12 @@ public class EntityPatch<T extends Entity> implements AnimatableObject, Componen
     /// Whether the entity's own vanilla model and its layers are skipped while this patch renders.
     private boolean blockVanillaRender;
 
+    /// Scale of the time this patch's animations advance by, see [#setAnimationTimeScale(float, float)]
+    private float animationTimeScale = 1.0F;
+
+    /// Seconds of real time left before [#animationTimeScale] goes back to 1, infinite while it holds
+    private float animationTimeScaleLeft = Float.POSITIVE_INFINITY;
+
     // Constructor for hardcoded entity patches. Register components manually using
     // `BuiltInEventHooks.Entity.CONSTRUCTED` event in subclasses.
     public EntityPatch(@NonNull final T original) {
@@ -248,12 +254,63 @@ public class EntityPatch<T extends Entity> implements AnimatableObject, Componen
         // Built-in support: updating armature component if exists.
         // deltaTime == 0.0 means the game is paused, so don't call the update logic
         if (deltaTime > 0.0F) {
-            components.values().forEach(component -> {
-                if (component.isEnabled() && component instanceof TickableDynamicComponent<?> tickableDynamicComponent) {
-                    tickableDynamicComponent.frameUpdate(deltaTime, partialTick);
-                }
-            });
+            // A time scale of 0 (hit stop) freezes the components the way a paused game does.
+            final float scaledTime = consumeAnimationTime(deltaTime);
+
+            if (scaledTime > 0.0F) {
+                components.values().forEach(component -> {
+                    if (component.isEnabled() && component instanceof TickableDynamicComponent<?> tickableDynamicComponent) {
+                        tickableDynamicComponent.frameUpdate(scaledTime, partialTick);
+                    }
+                });
+            }
         }
+    }
+
+    /// Scales the time this patch's animations advance by until changed again, see [#setAnimationTimeScale(float, float)].
+    public void setAnimationTimeScale(final float timeScale) {
+        setAnimationTimeScale(timeScale, Float.POSITIVE_INFINITY);
+    }
+
+    /// Scales the time this patch's animations advance by, for `seconds` of real time, then goes back to 1.
+    ///
+    /// 1 plays them at their own pace, 0.5 at half the pace, 0 freezes them: no montage, notify or bone moves
+    /// (a hit stop). It scales what [#beforeRender] passes to the components on a client, and the fixed tick
+    /// time of a server's [ArmatureComponent], on the side it is called. Unlike a per montage play rate
+    /// ([com.yesman.akythera.api.animation.animator.Animator#playAnimMontage(net.minecraft.resources.ResourceKey, String, float)]),
+    /// it covers the fades and every montage, and outlives the montage being played.
+    ///
+    /// @param timeScale the scale, 0 or more (a negative or non finite scale is taken as 1)
+    /// @param seconds   how long it holds, in seconds of real time; infinite until changed again
+    public void setAnimationTimeScale(final float timeScale, final float seconds) {
+        this.animationTimeScale = Float.isFinite(timeScale) && timeScale >= 0.0F ? timeScale : 1.0F;
+        this.animationTimeScaleLeft = seconds > 0.0F ? seconds : 0.0F;
+
+        if (this.animationTimeScaleLeft <= 0.0F) {
+            this.animationTimeScale = 1.0F;
+            this.animationTimeScaleLeft = Float.POSITIVE_INFINITY;
+        }
+    }
+
+    /// The scale of the time this patch's animations advance by, 1 by default.
+    public float getAnimationTimeScale() {
+        return animationTimeScale;
+    }
+
+    /// The animation time `seconds` of real time make, by [#setAnimationTimeScale(float, float)], and counts
+    /// them off the time the scale has left. Called once per frame on a client, once per tick on a server.
+    public float consumeAnimationTime(final float seconds) {
+        if (animationTimeScaleLeft == Float.POSITIVE_INFINITY || seconds < animationTimeScaleLeft) {
+            if (animationTimeScaleLeft != Float.POSITIVE_INFINITY) animationTimeScaleLeft -= seconds;
+            return seconds * animationTimeScale;
+        }
+
+        // The scale ends within these seconds: the rest runs at the normal pace.
+        final float scaled = animationTimeScaleLeft * animationTimeScale + (seconds - animationTimeScaleLeft);
+        animationTimeScale = 1.0F;
+        animationTimeScaleLeft = Float.POSITIVE_INFINITY;
+
+        return scaled;
     }
 
     /// Saves permanent data
