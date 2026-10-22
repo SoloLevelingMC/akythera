@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.core.networking;
 
+import com.yesman.akythera.api.component.impl.ArmatureComponent;
 import com.yesman.akythera.api.world.patch.AkytheraPatches;
 import com.yesman.akythera.core.networking.PayloadContext;
 import com.yesman.akythera.api.world.ability.AbilityEffect;
@@ -28,6 +29,7 @@ import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundOpenWi
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundPlayAbilityCue;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundPlayAnimMontage;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundPlayParticleSystem;
+import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundStopAnimMontage;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundTerminateAbilityCue;
 import com.yesman.akythera.core.registry.AkytheraRegistries;
 import com.yesman.akythera.core.util.EnumerableDataBlockSync;
@@ -340,14 +342,41 @@ public interface AkytheraClientBoundPayloadHandler {
         );
     }
 
-    static void handlePlayMontage(ClientBoundPlayAnimMontage payload, PayloadContext context) {
-        AkytheraPatches.getEntityPatchOptional(context.receiver()).ifPresent(entityPatch -> {
-            if (entityPatch.getArmatureComponent() == null) return;
+    /// The armature of the client's entity `entityId`, or null when this client doesn't see the entity
+    /// (out of range, already removed) or its patch has no armature to animate.
+    static @Nullable ArmatureComponent armatureOf(final int entityId) {
+        return AkytheraPatches.getEntityPatchOptional(entityOf(entityId))
+            .map(entityPatch -> entityPatch.getArmatureComponent())
+            .orElse(null);
+    }
 
-            entityPatch.getArmatureComponent().getAnimator().playAnimMontage(
-                ResourceKey.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, payload.montageId()),
-                payload.montageSection()
+    /// Plays the montage on the entity the server named, not on the receiving player. Dropped when this
+    /// client has no armature for that entity.
+    static void handlePlayMontage(ClientBoundPlayAnimMontage payload, PayloadContext context) {
+        ArmatureComponent armatureComponent = armatureOf(payload.entityId());
+
+        if (armatureComponent == null) {
+            Akythera.LOGGER.debug(
+                "Montage {} dropped: entity {} has no armature on this client", payload.montageId(), payload.entityId()
             );
-        });
+
+            return;
+        }
+
+        armatureComponent.getAnimator().playAnimMontage(
+            ResourceKey.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, payload.montageId()),
+            payload.montageSection()
+        );
+    }
+
+    /// Stops the montage the server stopped, on the entity it named.
+    static void handleStopMontage(ClientBoundStopAnimMontage payload, PayloadContext context) {
+        ArmatureComponent armatureComponent = armatureOf(payload.entityId());
+
+        if (armatureComponent == null) return;
+
+        armatureComponent.getAnimator().stopPlayingMontage(
+            payload.montageId().map(id -> ResourceKey.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, id)).orElse(null)
+        );
     }
 }
