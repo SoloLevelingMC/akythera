@@ -14,42 +14,62 @@ import com.yesman.akythera.fabric.networking.ServerBoundNetworkReceiverRegistrar
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.entrypoint.EntrypointContainer;
+
+import java.util.function.Consumer;
 
 public final class AkytheraFabric implements ModInitializer {
     public AkytheraFabric() {
         Akythera.onModConstructed();
 
         // Defines an entry point for addons to register their custom entry to ComponentsFactory
-        FabricLoader.getInstance()
-            .getEntrypointContainers("component_factory_initializer", ComponentFactoryInitializer.class)
-            .forEach(container -> {
-                try {
-                    container.getEntrypoint().onFactoryInitialized(ComponentsFactory.getImpl());
-                } catch (Exception e) {
-                    Akythera.LOGGER.error(
-                        "{} failed at register objects to ComponentsFactory",
-                        container.getProvider().getMetadata().getId(),
-                        e
-                    );
-                }
-            });
+        invokeEntrypoints(
+            "component_factory_initializer",
+            ComponentFactoryInitializer.class,
+            "register entity patches and components to ComponentsFactory",
+            initializer -> initializer.onFactoryInitialized(ComponentsFactory.getImpl())
+        );
 
         Akythera.registerBuiltInDataBlockClasses();
 
         // Defines an entry point for addons to register enumerable data block enum classes
-        FabricLoader.getInstance()
-            .getEntrypointContainers("enumerable_data_block_initializer", EnumerableDataBlockInitializer.class)
-            .forEach(container -> {
-                try {
-                    container.getEntrypoint().registerEnums();
-                } catch (Exception e) {
-                    Akythera.LOGGER.error(
-                        "{} failed at register objects to ComponentsFactory",
-                        container.getProvider().getMetadata().getId(),
-                        e
-                    );
+        invokeEntrypoints(
+            "enumerable_data_block_initializer",
+            EnumerableDataBlockInitializer.class,
+            "register enumerable data block classes",
+            EnumerableDataBlockInitializer::registerEnums
+        );
+    }
+
+    /// Calls every addon's `key` entry point. A failing one is logged with the mod and the class that threw, then
+    /// crashes the game in a development environment: a half-registered addon otherwise fails later, far from the
+    /// cause (e.g. enum ids that differ between the server and its clients).
+    private static <T> void invokeEntrypoints(
+        final String key,
+        final Class<T> type,
+        final String action,
+        final Consumer<T> invoker
+    ) {
+        for (EntrypointContainer<T> container : FabricLoader.getInstance().getEntrypointContainers(key, type)) {
+            String modId = container.getProvider().getMetadata().getId();
+
+            try {
+                invoker.accept(container.getEntrypoint());
+            } catch (RuntimeException | LinkageError e) {
+                Akythera.LOGGER.error(
+                    "Mod {} failed to {} in its '{}' entry point {}",
+                    modId,
+                    action,
+                    key,
+                    container.getDefinition(),
+                    e
+                );
+
+                if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+                    throw new IllegalStateException("Mod " + modId + " failed to " + action + " in its '" + key + "' entry point", e);
                 }
-            });
+            }
+        }
     }
 
     @Override

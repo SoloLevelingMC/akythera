@@ -5,7 +5,6 @@ import com.yesman.akythera.client.compat.IClientModPlugin;
 import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.asset.armature.Bone;
-import com.yesman.akythera.core.util.helper.Matrix4fUtils;
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.zigythebird.playeranim.api.PlayerAnimationFactory;
 import com.zigythebird.playeranim.util.RenderUtil;
@@ -14,14 +13,28 @@ import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
 import net.minecraft.resources.Identifier;
 import org.joml.Matrix4f;
+import org.joml.Matrix4fc;
 import org.joml.Quaternionf;
 import org.joml.Vector3d;
 import org.joml.Vector3f;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
-    /// Poses `modelPart` by `bone`.
+    // Working objects of [#mapAnimation], run for every posed part on every frame. Render thread only.
+    private static final Matrix4f TRANSFORM = new Matrix4f();
+    private static final Quaternionf ROTATION = new Quaternionf();
+    private static final Vector3f EULER_ZYX = new Vector3f();
+    private static final Vector3f SCALE = new Vector3f();
+    private static final Vector3d BEND_EULER_ZYX = new Vector3d();
+
+    /// Initial pose of a model part as a matrix, by pose. Models share a handful of poses, so this stays small.
+    private static final Map<PartPose, Matrix4fc> INITIAL_POSE_MATRICES = new HashMap<>();
+
+    /// Poses `modelPart` by `bone`. Render thread only.
     ///
     /// @param modelBoneTransform the bone's forward-bound transform in the patch's model space, the armature's own
     ///                           transform applied
@@ -35,16 +48,11 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
     ) {
         PartPose initPose = modelPart.getInitialPose();
         // Calculates an initial pose of a cube
-        Matrix4f initPoseTransform = new Matrix4f();
-        initPoseTransform.translate(initPose.x(), initPose.y(), initPose.z());
-        initPoseTransform.rotate(new Quaternionf().fromAxisAngleDeg(new Vector3f(1, 0, 0), initPose.xRot()));
-        initPoseTransform.rotate(new Quaternionf().fromAxisAngleDeg(new Vector3f(0, 1, 0), initPose.yRot()));
-        initPoseTransform.rotate(new Quaternionf().fromAxisAngleDeg(new Vector3f(0, 0, 1), initPose.zRot()));
-        initPoseTransform.scale(initPose.xScale(), initPose.yScale(), initPose.zScale());
+        Matrix4fc initPoseTransform = INITIAL_POSE_MATRICES.computeIfAbsent(initPose, PlayerAnimationLibraryPlugin::initialPoseMatrix);
 
-        Matrix4f transform = new Matrix4f();
+        Matrix4f transform = TRANSFORM;
         // Revert Mesh space coord -> Minecraft model space coord
-        transform.scale(-16.0F, -16.0F, 16.0F);
+        transform.scaling(-16.0F, -16.0F, 16.0F);
         transform.translate(0.0F, -1.501F, 0.0F);
 
         // Apply animation in mesh space
@@ -59,15 +67,17 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
         // Move the cube to initial pose
         transform.mul(initPoseTransform);
 
-        Vector3f translation = Matrix4fUtils.extractTranslation(transform);
-        Vector3f eulerZXY = Matrix4fUtils.extractRotator(transform).getEulerAnglesZYX(new Vector3f());
-        Vector3f scale = Matrix4fUtils.extractScale(transform);
+        float translationX = transform.m30();
+        float translationY = transform.m31();
+        float translationZ = transform.m32();
+        Vector3f eulerZXY = transform.getUnnormalizedRotation(ROTATION).getEulerAnglesZYX(EULER_ZYX);
+        Vector3f scale = transform.getScale(SCALE);
 
         /* mapping the animation into vanilla model part*/
         /*
-        modelPart.x = translation.x();
-        modelPart.y = translation.y();
-        modelPart.z = translation.z();
+        modelPart.x = translationX;
+        modelPart.y = translationY;
+        modelPart.z = translationZ;
         modelPart.xRot = eulerZXY.x();
         modelPart.yRot = eulerZXY.y();
         modelPart.zRot = eulerZXY.z();
@@ -76,9 +86,9 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
         modelPart.zScale = scale.z();
         */
 
-        palBone.position.x = translation.x() - initPose.x();
-        palBone.position.y = -translation.y() + initPose.y();
-        palBone.position.z = translation.z() - initPose.z();
+        palBone.position.x = translationX - initPose.x();
+        palBone.position.y = -translationY + initPose.y();
+        palBone.position.z = translationZ - initPose.z();
         palBone.rotation.x = eulerZXY.x();
         palBone.rotation.y = eulerZXY.y() - initPose.yRot();
         palBone.rotation.z = eulerZXY.z();
@@ -90,9 +100,18 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
 
         // Apply bends from bend bone
         if (bendBone != null && pose.hasTransform(bendBone.getName())) {
-            Vector3d rotations = pose.get(bendBone.getName()).rot().getEulerAnglesZYX(new Vector3d());
+            Vector3d rotations = pose.get(bendBone.getName()).rot().getEulerAnglesZYX(BEND_EULER_ZYX);
             palBone.bend = (float)-rotations.x();
         }
+    }
+
+    /// The matrix a model part applies for `initPose`, as [ModelPart#translateAndRotate] does: translation, rotation
+    /// in Z, Y, X order (in radians), then scale.
+    private static Matrix4fc initialPoseMatrix(final PartPose initPose) {
+        return new Matrix4f()
+            .translation(initPose.x(), initPose.y(), initPose.z())
+            .rotateZYX(initPose.zRot(), initPose.yRot(), initPose.xRot())
+            .scale(initPose.xScale(), initPose.yScale(), initPose.zScale());
     }
 
     private static final Identifier LOCOMOTION_LAYER = Identifier.fromNamespaceAndPath(Akythera.MODID, "animation_layer");

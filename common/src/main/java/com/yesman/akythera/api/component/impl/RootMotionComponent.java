@@ -83,12 +83,18 @@ public final class RootMotionComponent {
         // No root motion is being played
         if (rootMotionTransformProvider == null || playbackTimeSupplier == null) return;
 
-        // frame update is done in client side, for both players and AI entities.
-        // this will prevent the root motion looks like `sliding` by custom interval
-        // interpolations implemented by Minecraft.
-        if (armature.getOwner().logicalSide().validInClientSide()) {
-            deltaMove(deltaTime);
-        }
+        ComponentAttachable owner = armature.getOwner();
+
+        if (!owner.logicalSide().validInClientSide()) return;
+
+        // Only the instance that owns the entity's position moves it: the local player (or what it controls).
+        // Other players and AI entities are moved by the server, and their client copies follow its position
+        // updates. Moving them here too would fight that position. Owners that aren't entities (e.g. models
+        // shown in a screen) only live in the client.
+        if (owner instanceof EntityPatch<?> entityPatch && !entityPatch.getOriginal().isLocalInstanceAuthoritative()) return;
+
+        // Moving by frame rather than by tick keeps the local player's root motion from looking like `sliding`.
+        deltaMove(deltaTime);
     }
 
     private void deltaMove(final float deltaTime) {

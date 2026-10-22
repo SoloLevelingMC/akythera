@@ -1,6 +1,7 @@
 package com.yesman.akythera.core.animation.playable;
 
 import com.google.common.base.Suppliers;
+import com.mojang.datafixers.util.Either;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -45,12 +46,19 @@ import java.util.function.Supplier;
 /// system. Most terminologies are from there.
 @ScriptType(autoRegister = false)
 public final class AnimationMontage implements PlayableAnimation {
+    /// The clips the montage plays one after another, under `animations`. Montages written before the key got its name
+    /// back spell it `animationsToReplace`: still read, never written.
+    private static final MapCodec<List<AssetAccessor<AnimationClip>>> SEGMENTS_CODEC = Codec.mapEither(
+        AnimationManager.CODEC.listOf().fieldOf("animations"),
+        AnimationManager.CODEC.listOf().fieldOf("animationsToReplace")
+    ).xmap(Either::unwrap, Either::left);
+
     public static final MapCodec<AnimationMontage> MAP_CODEC = RecordCodecBuilder.mapCodec(
         instance ->
             instance.group(
                 AnimationNotifyTrack.CODEC.optionalFieldOf("notify_track", AnimationNotifyTrack.EMPTY).forGetter(AnimationMontage::notifyTrack),
                 SectionInfo.CODEC.fieldOf("sections").forGetter(AnimationMontage::sectionInfo),
-                AnimationManager.CODEC.listOf().fieldOf("animationsToReplace").forGetter(AnimationMontage::getAnimSegments),
+                SEGMENTS_CODEC.forGetter(AnimationMontage::getAnimSegments),
                 AnimationLayerSignature.ENUM_MANAGER.getNameCodec().fieldOf("layer_signature").forGetter(AnimationMontage::layerSignature),
                 Codec.FLOAT.fieldOf("fade_in_time").forGetter(AnimationMontage::fadeInTime),
                 Codec.FLOAT.fieldOf("fade_out_time").forGetter(AnimationMontage::fadeOutTime),

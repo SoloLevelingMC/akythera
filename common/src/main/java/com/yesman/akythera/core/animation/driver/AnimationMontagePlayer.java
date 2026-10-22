@@ -176,8 +176,10 @@ public final class AnimationMontagePlayer implements AnimationDriver {
                 }
             }
 
-            // Update elapse time if not in the fading stage
-            if (!isFading) {
+            // Update elapse time while fading in or playing: the playhead runs from the start of the fade-in, so the
+            // montage keeps its timing (notifies, hit windows) whatever its fade-in time. A fade-out holds the cached
+            // last pose and doesn't need it.
+            if (fadingInOrOut) {
                 SectionInfo sectionInfo = currentPlaying.value().sectionInfo();
                 String currentSectionName = sectionInfo.getSectionAt(elapsedTime);
                 TimeWindow currentSectionWindow = sectionInfo.getSectionTimeWindow(currentSectionName);
