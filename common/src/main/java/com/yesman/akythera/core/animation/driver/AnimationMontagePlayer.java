@@ -34,6 +34,9 @@ import java.util.List;
 /// [#fadeTime] becomes 1 or 0 in each case. This means the fade-in and fade-out
 /// times are included for the animation's total time. Both are declared at
 /// [AnimationMontage#fadeInTime()] and [AnimationMontage#fadeOutTime()].
+///
+/// The playhead advances by the frame time times the play rate given to [#playAnimation]
+/// (1 by default); fades always take their own time.
 public final class AnimationMontagePlayer implements AnimationDriver {
     /// Cached last pose before call [#playAnimation] or [#terminate]
     @NonNull
@@ -62,8 +65,24 @@ public final class AnimationMontagePlayer implements AnimationDriver {
     /// Current montage callback handler
     private MontageCallbackHandle montageCallbackHandle;
 
-    /// Plays an animation montage starting in a specific section
+    /// How fast the playhead of the current montage runs: 1 at the montage's own pace
+    private float playRate = 1.0F;
+
+    /// Plays an animation montage starting in a specific section, at its own pace
     public MontageCallbackHandle playAnimation(final Holder.@NonNull Reference<@NonNull AnimationMontage> animMontage, @Nullable final String sectionName) {
+        return playAnimation(animMontage, sectionName, 1.0F);
+    }
+
+    /// Plays an animation montage starting in a specific section
+    ///
+    /// @param playRate how fast the playhead runs, 1 being the montage's own pace (2 plays it twice as fast).
+    ///                 A rate that is not finite or not above 0 plays at 1. The fades keep their own time.
+    public MontageCallbackHandle playAnimation(
+        final Holder.@NonNull Reference<@NonNull AnimationMontage> animMontage,
+        @Nullable final String sectionName,
+        final float playRate
+    ) {
+        this.playRate = sanitizePlayRate(playRate);
         if (currentPlaying != null) {
             // Cache the current pose of the montage played lastly
             cachedLastMontagePose = getPose();
@@ -91,6 +110,16 @@ public final class AnimationMontagePlayer implements AnimationDriver {
     @Override
     public void terminate() {
         terminate(null);
+    }
+
+    /// How fast the playhead of the current montage runs, 1 being the montage's own pace
+    public float getPlayRate() {
+        return playRate;
+    }
+
+    /// `playRate` when it is finite and above 0, otherwise 1
+    public static float sanitizePlayRate(final float playRate) {
+        return Float.isFinite(playRate) && playRate > 0.0F ? playRate : 1.0F;
     }
 
     /// Returns the current playing montage section index
@@ -152,6 +181,8 @@ public final class AnimationMontagePlayer implements AnimationDriver {
     /// @param frameTime fixed to 0.05 in a server side, variable frame time in client side.
     @Override
     public void update(final float frameTime) {
+        final float playheadTime = frameTime * playRate;
+
         // Reset to 0 when no there's no playing animation
         if (currentPlaying == null) {
             elapsedTime = 0.0F;
@@ -184,12 +215,13 @@ public final class AnimationMontagePlayer implements AnimationDriver {
             // montage keeps its timing (notifies, hit windows) whatever its fade-in time. A fade-out holds the cached
             // last pose and doesn't need it.
             if (fadingInOrOut) {
+                // The playhead runs at the play rate, the fades above at the frame time.
                 SectionInfo sectionInfo = currentPlaying.value().sectionInfo();
                 String currentSectionName = sectionInfo.getSectionAt(elapsedTime);
                 TimeWindow currentSectionWindow = sectionInfo.getSectionTimeWindow(currentSectionName);
 
                 // Exceeds the section & animation total time bound by increment
-                if (currentSectionWindow != null && !currentSectionWindow.isIn(elapsedTime + frameTime) || elapsedTime + frameTime > currentPlaying.value().getTotalFrameTime()) {
+                if (currentSectionWindow != null && !currentSectionWindow.isIn(elapsedTime + playheadTime) || elapsedTime + playheadTime > currentPlaying.value().getTotalFrameTime()) {
                     String nextSectionName = sectionInfo.getNextSection(currentSectionName);
 
                     if (nextSectionName == null) {
@@ -199,7 +231,7 @@ public final class AnimationMontagePlayer implements AnimationDriver {
 
                         if (end >= totalTime && montage.loops() && totalTime > 0.0F) {
                             // The montage ends: start over, carrying the time past the end.
-                            float deltaPlus = Math.min(elapsedTime + frameTime - totalTime, totalTime);
+                            float deltaPlus = Math.min(elapsedTime + playheadTime - totalTime, totalTime);
                             lastUpdatedTime = -(totalTime - elapsedTime);
                             elapsedTime = deltaPlus;
                         } else if (end >= totalTime && !montage.holdsLastPose()) {
@@ -216,13 +248,13 @@ public final class AnimationMontagePlayer implements AnimationDriver {
                     } else {
                         // Set elapsed times to the next section
                         float deltaMinus = currentSectionWindow.to() - elapsedTime;
-                        float deltaPlus = elapsedTime + frameTime - currentSectionWindow.to();
+                        float deltaPlus = elapsedTime + playheadTime - currentSectionWindow.to();
                         TimeWindow nextSectionTime = sectionInfo.getSectionTimeWindow(nextSectionName);
                         lastUpdatedTime = nextSectionTime.from() - deltaMinus;
                         elapsedTime = nextSectionTime.from() + deltaPlus;
                     }
                 } else {
-                    elapsedTime += frameTime;
+                    elapsedTime += playheadTime;
                 }
             }
         }
@@ -312,6 +344,7 @@ public final class AnimationMontagePlayer implements AnimationDriver {
             sectionIndex = montagePlayerSource.sectionIndex;
             isFinished = montagePlayerSource.isFinished;
             fadingInOrOut = montagePlayerSource.fadingInOrOut;
+            playRate = montagePlayerSource.playRate;
         }
     }
 

@@ -363,9 +363,11 @@ public interface AkytheraClientBoundPayloadHandler {
             return;
         }
 
+        // A rate off the wire that is not finite or not above 0 plays at 1 (AnimationMontagePlayer#sanitizePlayRate).
         armatureComponent.getAnimator().playAnimMontage(
             ResourceKey.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, payload.montageId()),
-            payload.montageSection()
+            payload.montageSection(),
+            payload.playRate()
         );
     }
 

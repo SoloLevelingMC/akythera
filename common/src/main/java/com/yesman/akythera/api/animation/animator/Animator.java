@@ -38,6 +38,18 @@ public interface Animator {
     default AnimationMontagePlayer.@Nullable MontageCallbackHandle playAnimMontage(
         @NonNull final ResourceKey<@NonNull AnimationMontage> animMontageKey, final String section
     ) {
+        return playAnimMontage(animMontageKey, section, 1.0F);
+    }
+
+    /// Plays an [AnimationMontage] starting in a specific section, at a given play rate.
+    /// Ensure synchronization if it's called in a server side: on a logical server, the clients tracking
+    /// the owner play it at the same rate.
+    ///
+    /// @param playRate how fast the playhead runs, 1 being the montage's own pace (2 plays it twice as fast,
+    ///                 0.5 half as fast). Not finite or not above 0: 1. See [AnimationMontagePlayer#playAnimation].
+    default AnimationMontagePlayer.@Nullable MontageCallbackHandle playAnimMontage(
+        @NonNull final ResourceKey<@NonNull AnimationMontage> animMontageKey, final String section, final float playRate
+    ) {
         ComponentAttachable owner = getOwner();
         RegistryAccess registryAccess = owner instanceof EntityPatch<?> entityPatch
             ? entityPatch.getLevel().registryAccess()
@@ -47,11 +59,11 @@ public interface Animator {
         if (montageOptional.isPresent()) {
             Holder.Reference<AnimationMontage> animMontage = montageOptional.get();
             AnimationMontagePlayer.MontageCallbackHandle callbackHandle = getMontagePlayer(animMontageKey)
-                .playAnimation(animMontage, section);
+                .playAnimation(animMontage, section, playRate);
 
             // Montage authority is on server side, so if it's played in client side manual networking is required.
             if (owner instanceof EntityPatch<?> entityPatch && entityPatch.isLogicalServer()) {
-                AnimMontageSync.play(entityPatch.getOriginal(), animMontageKey, section);
+                AnimMontageSync.play(entityPatch.getOriginal(), animMontageKey, section, playRate);
             }
 
             ArmatureComponent armatureComponent = owner.findComponent(ArmatureComponent.class);

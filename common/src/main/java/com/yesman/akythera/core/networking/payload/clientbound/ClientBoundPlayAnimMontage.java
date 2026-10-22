@@ -8,8 +8,9 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.NullMarked;
 
+/// Plays a montage on an entity, from a section, at a play rate (1: the montage's own pace).
 @NullMarked
-public record ClientBoundPlayAnimMontage(Identifier montageId, String montageSection, int entityId) implements CustomPacketPayload {
+public record ClientBoundPlayAnimMontage(Identifier montageId, String montageSection, int entityId, float playRate) implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<ClientBoundPlayAnimMontage> TYPE =
         new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Akythera.MODID, "play_anim_montage"));
 
@@ -21,8 +22,15 @@ public record ClientBoundPlayAnimMontage(Identifier montageId, String montageSec
             ClientBoundPlayAnimMontage::montageSection,
             ByteBufCodecs.INT,
             ClientBoundPlayAnimMontage::entityId,
+            ByteBufCodecs.FLOAT,
+            ClientBoundPlayAnimMontage::playRate,
             ClientBoundPlayAnimMontage::new
         );
+
+    /// Plays at the montage's own pace.
+    public ClientBoundPlayAnimMontage(final Identifier montageId, final String montageSection, final int entityId) {
+        this(montageId, montageSection, entityId, 1.0F);
+    }
 
     @Override
     public Type<? extends CustomPacketPayload> type() {

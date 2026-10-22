@@ -18,16 +18,27 @@ import java.util.Optional;
 /// logical server. Call them directly for an entity that has no armature on the server, whose montages
 /// only ever play on clients.
 public final class AnimMontageSync {
-    /// Plays `montage` from `section` on `entity` in every client that sees it.
+    /// Plays `montage` from `section` on `entity` in every client that sees it, at `playRate`
+    /// (see [Animator#playAnimMontage(ResourceKey, String, float)]).
+    public static void play(
+        final Entity entity,
+        final ResourceKey<@NonNull AnimationMontage> montage,
+        final String section,
+        final float playRate
+    ) {
+        NetworkingHelper.getInstance().sendToPlayersTrackingEntityWithSelfIfPlayer(
+            entity,
+            new ClientBoundPlayAnimMontage(montage.identifier(), section, entity.getId(), playRate)
+        );
+    }
+
+    /// Plays `montage` from `section` on `entity` in every client that sees it, at its own pace.
     public static void play(
         final Entity entity,
         final ResourceKey<@NonNull AnimationMontage> montage,
         final String section
     ) {
-        NetworkingHelper.getInstance().sendToPlayersTrackingEntityWithSelfIfPlayer(
-            entity,
-            new ClientBoundPlayAnimMontage(montage.identifier(), section, entity.getId())
-        );
+        play(entity, montage, section, 1.0F);
     }
 
     /// Plays `montage` from its first section on `entity` in every client that sees it.
