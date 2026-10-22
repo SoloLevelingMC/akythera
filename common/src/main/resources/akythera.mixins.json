@@ -19,7 +19,6 @@
     "client.MixinModelFeatureRenderer",
     "client.MixinParticle",
     "client.MixinParticleEngine",
-    "client.MixinPreparedFrame",
     "client.MixinRenderSystem"
   ],
   "mixins": [

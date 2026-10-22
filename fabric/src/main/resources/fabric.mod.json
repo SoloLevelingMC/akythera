@@ -38,9 +38,11 @@
     "fabricloader": ">=${fabricLoader}",
     "minecraft": ">=${minecraft}",
     "java": ">=${javaVersion}",
-    "fabric-api": "*"
+    "fabric-api": "*",
+    "forgeconfigapiport": ">=${forgeconfigapiportVersion}",
+    "player_animation_library": ">=1.2.6"
   },
   "suggests": {
-    "player_animation_library": ">=1.1.6"
+    "bendable_cuboids": "*"
   }
 }

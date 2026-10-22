@@ -103,9 +103,6 @@ private val Project.fabricLoaderVersion: String
 private val Project.fabricApiVersion: String
     get() = catalogVersion("fabric-api")
 
-private val Project.neoForgeVersion: String
-    get() = catalogVersion("neoforge")
-
 /**
  * Configures the JAR file names to be unique, clear, and consistent.
  */
@@ -124,13 +121,10 @@ private fun Project.getFullModVersion(variant: String): String = "$variant-mc${m
 
 private fun Project.getCompactModVersion(variant: String): String = "$variant-${modVersion}"
 
+// SoloLevelingMC fork: Fabric is the only platform left (the NeoForge module is removed).
 enum class ModLoader(val conventionalName: String) {
-    NeoForge("NeoForge"),
     Fabric("Fabric"),
     ;
-
-    val isForgeLike: Boolean
-        get() = this == NeoForge
 
     val isFabricLike: Boolean
         get() = this == Fabric
@@ -159,7 +153,6 @@ private fun Project.buildReleaseChangelog(
 
         val modLoaderName = modLoader.name
         val modLoaderVersion: String = when (modLoader) {
-            ModLoader.NeoForge -> neoForgeVersion
             ModLoader.Fabric -> fabricLoaderVersion
         }
 
@@ -287,7 +280,7 @@ fun Project.configureModPublish(
  * (and ModDevGradle leaves as the plain "jar" task output).
  *
  * The group and artifact IDs are read from "gradle.properties" ("group_id" and "artifact_id");
- * the artifact ID is suffixed with the mod loader name (e.g., "akythera-neoforge"),
+ * the artifact ID is suffixed with the mod loader name (e.g., "akythera-fabric"),
  * since each platform needs unique Maven coordinates.
  *
  * Run "gradlew publishToMavenCentral" to upload (or "publishAndReleaseToMavenCentral" to also
@@ -381,7 +374,7 @@ private fun Node.childrenNamed(localName: String): List<Node> =
     }
 
 /**
- * The placeholders to be replaced with in mod loader metadata (fabric.mod.json, neoforge.mods.toml).
+ * The placeholders to be replaced with in mod loader metadata (fabric.mod.json).
  *
  * ### **Example:**
  *
@@ -418,9 +411,7 @@ val Project.modPlatformMetadataReplaceProperties: Map<String, Any>
         "credits" to modCredits,
         "sourceCode" to modSourceCode,
         "minecraft" to mcVersion,
-        "neoforgeVersion" to neoForgeVersion,
         "javaVersion" to javaVersion,
-        // TODO: when forgeconfigapiport ported to 26.1 import the project
-        // "forgeconfigapiportVersion" to catalogVersion("forgeconfigapiport"),
+        "forgeconfigapiportVersion" to catalogVersion("forgeconfigapiport"),
         "fabricLoader" to fabricLoaderVersion,
     )

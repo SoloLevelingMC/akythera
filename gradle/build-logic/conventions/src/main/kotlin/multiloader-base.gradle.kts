@@ -1,5 +1,5 @@
 // Configures shared Gradle setup for all Gradle projects.
-// This plugin is meant to be applied to every project, including ":common", ":neoforge" and ":fabric".
+// This plugin is meant to be applied to every project, including ":common" and ":fabric".
 //
 // Consumers of this Gradle plugin are expected to manually call the following methods:
 //

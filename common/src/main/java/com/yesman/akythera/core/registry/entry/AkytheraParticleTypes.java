@@ -27,7 +27,6 @@ import com.yesman.akythera.core.blueprint.particle.SkeletalMeshParticleBlueprint
 import com.yesman.akythera.core.blueprint.particle.SpawnRateRule;
 import com.yesman.akythera.core.blueprint.particle.SpriteParticleBlueprint;
 import com.yesman.akythera.core.blueprint.particle.StaticMeshParticleBlueprint;
-import com.yesman.akythera.core.blueprint.particle.TrailParticleBlueprint;
 import com.yesman.akythera.core.registry.AkytheraRegistries;
 import com.yesman.akythera.platform.ModPlatform;
 import com.yesman.akythera.platform.ModPlatformProvider;
@@ -53,8 +52,6 @@ public final class AkytheraParticleTypes {
     public static final Holder<MapCodec<? extends ParticleBlueprint>> STATIC_MESH = REGISTRAR.register("static_mesh", () -> StaticMeshParticleBlueprint.MAP_CODEC);
 
     public static final Holder<MapCodec<? extends ParticleBlueprint>> SKELETAL_MESH = REGISTRAR.register("skeletal_mesh", () -> SkeletalMeshParticleBlueprint.MAP_CODEC);
-
-    public static final Holder<MapCodec<? extends ParticleBlueprint>> TRAIL = REGISTRAR.register("trail", () -> TrailParticleBlueprint.MAP_CODEC);
 
     public static final Holder<MapCodec<? extends EmitterSpawnRule>> INSTANT = SPAWN_RULE_REGISTRAR.register("instant", () -> InstantSpawnRule.MAP_CODEC);
 

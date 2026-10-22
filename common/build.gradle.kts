@@ -1,17 +1,23 @@
 plugins {
     id("multiloader-base")
-    alias(libs.plugins.moddevgradle)
+    // SoloLevelingMC fork: the common sources compile against the same Minecraft jar Fabric Loom gives
+    // ":fabric", with the same access widener. ModDevGradle and NeoForm (which decompiled and recompiled
+    // Minecraft on every fresh build) went away with the NeoForge module (see README_FORK.md).
+    alias(libs.plugins.fabric.loom)
     alias(libs.plugins.mcSafeResources)
 }
 
 configureBaseArchive("Common")
 
-neoForge {
-    neoFormVersion = libs.versions.neoform.get()
+loom {
+    accessWidenerPath = file("src/main/resources/akythera.accesswidener")
 }
 
 dependencies {
-    // compileOnly(libs.forgeconfigapiport.common) // Required in non-Forge like platforms deactivated until 26.1 released
+    minecraft(libs.fabric.minecraft)
+    // Only for the @Environment annotations the Minecraft jar carries; the common code calls no Fabric API.
+    compileOnly(libs.fabric.loader)
+
     compileOnly(libs.mixin)
     compileOnly(libs.asm.tree) // Manual import for implementations of IMixinConfigPlugin
     compileOnly(libs.forgeconfigapiport.common)

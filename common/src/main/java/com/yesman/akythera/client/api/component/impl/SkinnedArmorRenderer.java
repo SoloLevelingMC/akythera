@@ -1,6 +1,5 @@
 package com.yesman.akythera.client.api.component.impl;
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.yesman.akythera.api.asset.AssetAccessor;
 import com.yesman.akythera.api.component.ComponentAttachable;
@@ -14,7 +13,6 @@ import com.yesman.akythera.client.api.lifecycle.ClientComponentsFactory;
 import com.yesman.akythera.client.core.asset.mesh.Mesh;
 import com.yesman.akythera.client.core.asset.mesh.SkeletalMesh;
 import com.yesman.akythera.client.core.asset.mesh.VanillaModelBaker;
-import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.asset.armature.Armature;
@@ -286,8 +284,8 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
 
     /// Draws [#wornMesh] once through `renderType`, its UVs laid into `sprite` when one is given.
     ///
-    /// The skinning dispatch writes entity vertices with the mesh's own UVs. A pass that takes another
-    /// vertex format, or that draws through a sprite, is skinned into the staged buffer instead.
+    /// Skinned on the CPU into the staged buffer (no compute shaders in this fork), through `sprite`
+    /// when one is given.
     private void submitWorn(
         final PoseStack poseStack,
         final SubmitNodeCollector submitNodeCollector,
@@ -303,15 +301,6 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
         if (mesh == null || animationPose == null) return;
 
         AssetAccessor<? extends Armature> armatureAsset = armature.getArmature();
-
-        if (sprite == null && mesh.getAnimationComputeShader() != null && renderType.format() == DefaultVertexFormat.ENTITY) {
-            PatchModelRenderer.getInstance().submitSkinnedMesh(
-                mesh, armatureAsset, animationPose, renderType, poseStack.last(),
-                lightCoords, OverlayTexture.NO_OVERLAY, color, state.outlineColor
-            );
-
-            return;
-        }
 
         Armature resolvedArmature = armatureAsset.get();
         Matrix4f[] boundTransforms = animationPose.getForwardBoundTransforms(

@@ -16,7 +16,6 @@ import com.yesman.akythera.api.world.patch.AkytheraPatches;
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.yesman.akythera.client.core.asset.mesh.Mesh;
 import com.yesman.akythera.client.core.asset.mesh.SkeletalMesh;
-import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.asset.armature.Armature;
@@ -125,15 +124,6 @@ public class AkytheraSkeletalMeshParticle extends AkytheraStaticMeshParticle imp
         Pose pose = drawnPose();
         RGBA color = state().getColor();
 
-        if (skeletalMesh.getAnimationComputeShader() != null) {
-            PatchModelRenderer.getInstance().submitSkinnedMesh(
-                skeletalMesh, skeleton, pose, renderType, poseStack.last(),
-                lightCoords, OverlayTexture.NO_OVERLAY, ARGB.colorFromFloat(color.a(), color.r(), color.g(), color.b()), 0
-            );
-
-            return;
-        }
-
         Matrix4f[] boundTransforms = pose.getForwardBoundTransforms(skeleton, Matrix4fUtils.allocateMatrixArray(resolvedArmature.getBoneCount()));
         resolvedArmature.boundBackwardTransform(boundTransforms);
 
@@ -169,14 +159,6 @@ public class AkytheraSkeletalMeshParticle extends AkytheraStaticMeshParticle imp
         if (resolvedArmature == null) return;
 
         Pose pose = drawnPose();
-
-        if (skeletalMesh.getAnimationComputeShader() != null) {
-            PatchModelRenderer.getInstance().drawSkinnedMeshImmediate(
-                skeletalMesh, skeleton, pose, renderType, poseStack.last(), LightCoordsUtil.FULL_BRIGHT, OverlayTexture.NO_OVERLAY, color, eye
-            );
-
-            return;
-        }
 
         Matrix4f[] boundTransforms = pose.getForwardBoundTransforms(skeleton, Matrix4fUtils.allocateMatrixArray(resolvedArmature.getBoneCount()));
         resolvedArmature.boundBackwardTransform(boundTransforms);

@@ -17,7 +17,6 @@ import com.yesman.akythera.client.compat.playeranimlibrary.AkytheraAnimationLaye
 import com.yesman.akythera.client.core.asset.loader.MeshLoader;
 import com.yesman.akythera.client.core.asset.mesh.Mesh;
 import com.yesman.akythera.client.core.asset.mesh.SkeletalMesh;
-import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.client.core.renderer.RenderUtils;
 import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.driver.AnimationMontagePlayer;
@@ -261,8 +260,8 @@ public final class EntityModelComponent implements Model3DViewerComponent, Anima
     }
 
     /// Draws the mesh skinned when an armature and an animator are both installed, in its authored
-    /// bind pose otherwise. A skinned draw goes to the compute shader where the device has one and
-    /// to [SkeletalMesh#drawPosed] where it does not.
+    /// bind pose otherwise. A skinned draw goes to [SkeletalMesh#drawPosed] (no compute shaders in
+    /// this fork).
     private void renderSkeletal(PoseStack poseStack, ByteBufferBuilder byteBuffer, Vector3fc eye) {
         assert mesh != null;
 
@@ -277,22 +276,6 @@ public final class EntityModelComponent implements Model3DViewerComponent, Anima
 
         if (arm == null || pose == null) {
             drawBindPose(skMesh, drawTexture, poseStack, byteBuffer);
-            return;
-        }
-
-        if (skMesh.getAnimationComputeShader() != null) {
-            PatchModelRenderer.getInstance().drawSkinnedMeshImmediate(
-                skMesh,
-                armatureAccessor,
-                pose,
-                RenderTypes.entityTranslucent(drawTexture),
-                poseStack.last(),
-                Model3DViewer.FULL_BRIGHT,
-                OverlayTexture.NO_OVERLAY,
-                NO_TINT,
-                eye
-            );
-
             return;
         }
 
