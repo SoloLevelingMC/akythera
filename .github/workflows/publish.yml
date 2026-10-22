@@ -1,0 +1,82 @@
+# Fork SoloLevelingMC : construit le module Fabric et publie son jar sur GitHub Packages (voir README_FORK.md).
+name: publier
+
+on:
+  push:
+    branches: [sololeveling]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publier-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publier:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: récupérer le dépôt
+        uses: actions/checkout@v6
+      - name: valider le wrapper Gradle
+        uses: gradle/actions/wrapper-validation@v6
+      - name: installer le JDK 25
+        uses: actions/setup-java@v5
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+      - name: installer Gradle (cache)
+        uses: gradle/actions/setup-gradle@v6
+      - name: rendre le wrapper exécutable
+        run: chmod +x ./gradlew
+
+      - name: construire le module Fabric
+        run: ./gradlew :fabric:build --stacktrace
+
+      # Les shaders de calcul et la langue d'origine sont « tous droits réservés » (LICENSE-ASSETS) :
+      # le jar ne doit contenir que nos traductions.
+      - name: vérifier l'absence des fichiers protégés
+        run: |
+          jar=$(ls fabric/build/libs/*.jar | grep -v -- '-sources.jar' | head -n 1)
+          echo "jar : $jar"
+          if unzip -l "$jar" | grep -E 'assets/akythera/shaders/'; then
+            echo "::error::le jar contient des shaders protégés"; exit 1
+          fi
+          unzip -l "$jar" | grep -E 'assets/akythera/lang/(en_us|fr_fr)\.json'
+
+      - name: lire la version
+        id: version
+        run: |
+          mc=$(sed -n 's/^minecraft = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          mod=$(sed -n 's/^mod = "\(.*\)"/\1/p' gradle/libs.versions.toml)
+          echo "version=${mc}-${mod}" >> "$GITHUB_OUTPUT"
+
+      # GitHub Packages refuse de republier une version existante : on ne publie qu'une version nouvelle.
+      - name: chercher la version sur GitHub Packages
+        id: existe
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh api "/orgs/${{ github.repository_owner }}/packages/maven/io.github.yesssssman.akythera.akythera-fabric/versions" \
+               --paginate --jq '.[].name' 2>/dev/null | grep -qx "${{ steps.version.outputs.version }}"; then
+            echo "deja=true" >> "$GITHUB_OUTPUT"
+            echo "Version ${{ steps.version.outputs.version }} déjà publiée : rien à faire."
+          else
+            echo "deja=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: publier sur GitHub Packages
+        if: steps.existe.outputs.deja != 'true'
+        env:
+          ORG_GRADLE_PROJECT_GitHubPackagesUsername: ${{ github.actor }}
+          ORG_GRADLE_PROJECT_GitHubPackagesPassword: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew :fabric:publishAllPublicationsToGitHubPackagesRepository --stacktrace
+
+      - name: garder le jar
+        uses: actions/upload-artifact@v7
+        with:
+          name: akythera-fabric-${{ steps.version.outputs.version }}
+          path: fabric/build/libs/

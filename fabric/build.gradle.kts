@@ -63,7 +63,25 @@ tasks.processResources {
     filesMatching("fabric.mod.json") {
         expand(replaceProperties)
     }
+
+    // SoloLevelingMC fork: the compute shaders are not redistributable and never go into the jar,
+    // even if a later merge from upstream brings them back (see README_FORK.md).
+    exclude("assets/akythera/shaders/**")
 }
 
 configureModPublish(ModLoader.Fabric) { tasks.jar.get().archiveFile }
 configureMavenCentralPublish(ModLoader.Fabric)
+
+// SoloLevelingMC fork: publishes the Fabric jar to the fork's GitHub Packages Maven repository
+// (task "publishAllPublicationsToGitHubPackagesRepository"). Credentials come from the
+// "GitHubPackagesUsername" and "GitHubPackagesPassword" Gradle properties, or their
+// "ORG_GRADLE_PROJECT_*" environment variables (see .github/workflows/publish.yml).
+publishing {
+    repositories {
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/SoloLevelingMC/akythera")
+            credentials(PasswordCredentials::class)
+        }
+    }
+}
