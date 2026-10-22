@@ -101,7 +101,7 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
         // Apply bends from bend bone
         if (bendBone != null && pose.hasTransform(bendBone.getName())) {
             Vector3d rotations = pose.get(bendBone.getName()).rot().getEulerAnglesZYX(BEND_EULER_ZYX);
-            palBone.bend = (float)-rotations.x();
+            setBend(palBone, (float)-rotations.x());
         }
     }
 
@@ -112,6 +112,16 @@ public final class PlayerAnimationLibraryPlugin implements IClientModPlugin {
             .translation(initPose.x(), initPose.y(), initPose.z())
             .rotateZYX(initPose.zRot(), initPose.yRot(), initPose.xRot())
             .scale(initPose.xScale(), initPose.yScale(), initPose.zScale());
+    }
+
+    /// Writes `bend` into `palBone`, which BendableCuboids reads to bend the limb.
+    ///
+    /// SoloLevelingMC fork: PAL 1.2.6 marks `PlayerAnimBone#bend` deprecated for removal but has no other way
+    /// to set a bend yet, so the field is still written as before; the warning is silenced here alone. Replace
+    /// this method when PAL drops the field.
+    @SuppressWarnings("removal")
+    private static void setBend(final PlayerAnimBone palBone, final float bend) {
+        palBone.bend = bend;
     }
 
     private static final Identifier LOCOMOTION_LAYER = Identifier.fromNamespaceAndPath(Akythera.MODID, "animation_layer");

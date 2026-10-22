@@ -21,7 +21,9 @@ import net.fabricmc.fabric.impl.client.rendering.ArmorRendererRegistryImpl;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.server.packs.PackType;
+import net.minecraft.world.item.Item;
 import net.neoforged.fml.config.ModConfig;
+import org.jspecify.annotations.Nullable;
 
 public final class AkytheraFabricClient implements ClientModInitializer {
     @SuppressWarnings("unchecked")
@@ -29,7 +31,7 @@ public final class AkytheraFabricClient implements ClientModInitializer {
         AkytheraClient.onModConstructed();
 
         ClientComponentsFactory.getImpl().setArmorSubmitter((poseStack, submitNodeCollector, stack, state, slot, lightCoords, parentModel) -> {
-            ArmorRenderer armorRenderer = ArmorRendererRegistryImpl.get(stack.getItem());
+            ArmorRenderer armorRenderer = armorRendererOf(stack.getItem());
 
             if (armorRenderer == null
                 || !(state instanceof HumanoidRenderState humanoidState)
@@ -44,6 +46,15 @@ public final class AkytheraFabricClient implements ClientModInitializer {
 
             return true;
         });
+    }
+
+    /// The armor renderer registered for `item` through [ArmorRenderer#register], or null.
+    ///
+    /// SoloLevelingMC fork: Fabric API 0.161.0+26.2 has no public way to read a registration back
+    /// ([ArmorRenderer] only registers), so the one internal class is reached here and nowhere else.
+    /// Check this method first when Fabric API is updated.
+    private static @Nullable ArmorRenderer armorRendererOf(final Item item) {
+        return ArmorRendererRegistryImpl.get(item);
     }
 
     @Override

@@ -412,7 +412,6 @@ val Project.modPlatformMetadataReplaceProperties: Map<String, Any>
         "sourceCode" to modSourceCode,
         "minecraft" to mcVersion,
         "javaVersion" to javaVersion,
-        // TODO: when forgeconfigapiport ported to 26.1 import the project
-        // "forgeconfigapiportVersion" to catalogVersion("forgeconfigapiport"),
+        "forgeconfigapiportVersion" to catalogVersion("forgeconfigapiport"),
         "fabricLoader" to fabricLoaderVersion,
     )
