@@ -23,7 +23,8 @@ Différences avec l'amont :
 - **Versions alignées sur le mod** : Fabric Loader 0.19.5, Fabric API 0.161.0+26.2, Loom 1.18.4 (épinglé, plus de SNAPSHOT), Gradle 9.7.1 (exigé par Loom 1.18), Mixin et ASM aux versions livrées par Fabric Loader.
 - **Accès fragiles isolés** : `ArmorRendererRegistryImpl` (interne à Fabric API, sans équivalent public en 0.161.0) n'est appelé que depuis `AkytheraFabricClient#armorRendererOf` ; `PlayerAnimBone.bend` (déprécié pour suppression dans PAL) n'est écrit que depuis `PlayerAnimationLibraryPlugin#setBend`. À revoir à chaque mise à jour de Fabric API ou de PAL.
 - **Langue réécrite** : `assets/akythera/lang/en_us.json` d'origine remplacé par nos propres textes, en anglais et en français (`fr_fr.json`). Mêmes clés.
-- **Version** : `0.2.0-SNAPSHOT.4-sl.3` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.3`.
+- **Version** : `0.2.0-SNAPSHOT.4-sl.4` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.4`.
+- **Raccourcis** : les touches d'Akythera (`key.akythera.primary_ability`, `secondary_ability`, `ultimate_ability`, autrefois R, G et V) n'ont plus de touche par défaut : le mod se sert de R (garde) et V (capacité de spécialisation) et n'utilise pas les actions d'entrée d'Akythera.
 - **Couche joueur (Player Animation Library)** : `PALPoseBinder` règle le poids de la couche (toujours plein, ou fondu des montages), un masque par partie mélangé avec la pose vanilla (`PartWeights`, pose d'avant la couche lisible par `AkytheraAnimationLayer.vanillaPose`), l'orientation du corps (`BodyYaw` : aucune, regard, valeur fournie), des corrections par partie (`PartCorrection`) et les parties qui suivent la flexion d'un os (`bend_carries`, tête et bras avec le buste) ; la flexion est aussi donnée aux os de bras sans partie de modèle (objet tenu de BendableCuboids). Vitesse par montage (`Animator#playAnimMontage(clé, section, vitesse)`, champ `playRate` du paquet de lecture) et échelle de temps par patch (`EntityPatch#setAnimationTimeScale`, pause à l'impact).
 - **Capacités et ressources** (API étendue pour le mod, rétrocompatible) :
   - une capacité construite en Java (sans clé de plan) n'est plus forcée `SERVER_ONLY` : son emplacement la nomme sur le réseau, et les clients que sa portée atteint y tiennent une `MirroredAbility` qui suit le cycle de vie et les recharges (`AbilitySystemComponent#getCooldown(AbilityInstance)`), jamais l'état. Le client n'écrit toujours rien côté serveur sans `serverBoundCodec` ;
@@ -40,7 +41,7 @@ Le code reste sous la licence du dépôt (`LICENSE`). `LICENSE-ASSETS` est conse
 ## Paquet publié
 
 - Dépôt Maven : `https://maven.pkg.github.com/SoloLevelingMC/akythera`
-- Coordonnées : `io.github.yesssssman.akythera:akythera-fabric:26.2-0.2.0-SNAPSHOT.4-sl.3`
+- Coordonnées : `io.github.yesssssman.akythera:akythera-fabric:26.2-0.2.0-SNAPSHOT.4-sl.4`
 
 GitHub Packages exige un jeton même en lecture (jeton personnel avec `read:packages`, ou `GITHUB_TOKEN` d'un dépôt autorisé dans les réglages du paquet) :
 
@@ -60,7 +61,7 @@ Le jar est aussi joint à chaque exécution du workflow (onglet Actions, artefac
 
 ## Publier une nouvelle version
 
-1. Monter la version dans `gradle/libs.versions.toml` (`mod = "0.2.0-SNAPSHOT.4-sl.4"`, ou `<nouvelle version amont>-sl.1` après une reprise de l'amont).
+1. Monter la version dans `gradle/libs.versions.toml` (`mod = "0.2.0-SNAPSHOT.4-sl.5"`, ou `<nouvelle version amont>-sl.1` après une reprise de l'amont).
 2. Pousser sur `sololeveling`. Le workflow `publier` construit `:fabric`, vérifie que le jar ne contient aucun shader, puis publie si cette version n'existe pas encore (GitHub Packages refuse de republier une version).
 3. Côté mod : mettre à jour le sous-module `external/akythera` et `akythera_version` dans `gradle.properties`.
 
