@@ -54,7 +54,8 @@ public interface AkytheraServerBoundPayloadHandler {
 
         Ability<?> ability = instance.getAbility();
 
-        // A client holds no instance of an ability it was never sent.
+        // A client holds no instance of an ability it was never sent, and mirrors a Java built one
+        // without any state it could write.
         if (ability == null || ability.getBlueprintKey() == null) return false;
         if (!ability.getInstantiationScope().reachesOwner()) return false;
         if (instance.getState().serverBoundCodec() == null) return false;

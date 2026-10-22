@@ -7,6 +7,7 @@ import com.yesman.akythera.core.networking.payload.bidirectional.BiDirectionalRe
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEffectSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEquipmentSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityLifecycle;
+import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityResourceSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityStateSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityTagSync;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundClearWidgetHuds;
@@ -45,6 +46,8 @@ public final class AkytheraPayloadTypes {
 		CLIENT_BOUND.add(new PayloadChannel<>(ClientBoundAbilityStateSync.TYPE, ClientBoundAbilityStateSync.STREAM_CODEC, () -> AkytheraClientBoundPayloadHandler::handleAbilityStateSync));
 
 		CLIENT_BOUND.add(new PayloadChannel<>(ClientBoundAbilityEffectSync.TYPE, ClientBoundAbilityEffectSync.STREAM_CODEC, () -> AkytheraClientBoundPayloadHandler::handleAbilityEffectSync));
+
+		CLIENT_BOUND.add(new PayloadChannel<>(ClientBoundAbilityResourceSync.TYPE, ClientBoundAbilityResourceSync.STREAM_CODEC, () -> AkytheraClientBoundPayloadHandler::handleAbilityResourceSync));
 
 		CLIENT_BOUND.add(new PayloadChannel<>(ClientBoundPlayAbilityCue.TYPE, ClientBoundPlayAbilityCue.STREAM_CODEC, () -> AkytheraClientBoundPayloadHandler::handlePlayAbilityCue));
 

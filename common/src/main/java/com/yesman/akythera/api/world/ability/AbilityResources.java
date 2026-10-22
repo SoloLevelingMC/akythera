@@ -13,6 +13,7 @@ import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.stream.Stream;
@@ -24,6 +25,9 @@ import java.util.stream.Stream;
 public final class AbilityResources {
     private static final Map<Identifier, AbilityResource> REGISTRY = new LinkedHashMap<>();
     private static final Map<AbilityResource, Identifier> IDENTIFIERS = new HashMap<>();
+
+    /// The entries an [AbilitySystemComponent] ticks: the ones that regenerate or sync, decided at the freeze.
+    private static List<AbilityResource> tracked = List.of();
 
     private static boolean frozen;
 
@@ -87,6 +91,12 @@ public final class AbilityResources {
         return identifier;
     }
 
+    /// The entries that declared a [AbilityResource#regeneration] or a non-negative
+    /// [AbilityResource#syncThreshold] when the registry froze. Empty before the freeze.
+    public static List<AbilityResource> trackedResources() {
+        return tracked;
+    }
+
     public static Stream<Map.Entry<Identifier, AbilityResource>> entryStream() {
         return REGISTRY.entrySet().stream();
     }
@@ -102,6 +112,9 @@ public final class AbilityResources {
     public static void freeze() {
         IDENTIFIERS.clear();
         REGISTRY.forEach((identifier, resource) -> IDENTIFIERS.put(resource, identifier));
+        tracked = REGISTRY.values().stream()
+            .filter(resource -> resource.regeneration() != null || resource.syncThreshold() >= 0.0F)
+            .toList();
         frozen = true;
     }
 
