@@ -7,12 +7,14 @@ import com.yesman.akythera.api.animation.animator.Animator;
 import com.yesman.akythera.api.component.ComponentAttachable;
 import com.yesman.akythera.api.event.BuiltInEventHooks;
 import com.yesman.akythera.api.event.entity.animation.InitBlendingAnimatorEvent;
+import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.yesman.akythera.core.animation.AnimationLayerSignature;
 import com.yesman.akythera.core.animation.driver.*;
 import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.animation.playable.AnimationMontage;
 import com.yesman.akythera.core.animation.playable.PlayableAnimation;
 import com.yesman.akythera.core.blueprint.script.AnimatorScript;
+import com.yesman.akythera.core.networking.AnimMontageSync;
 import com.yesman.akythera.core.util.StaticRegistryAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.resources.ResourceKey;
@@ -109,6 +111,29 @@ public final class BlendingAnimator implements Animator {
     public AnimationMontagePlayer getMontagePlayer(final ResourceKey<@NonNull AnimationMontage> animMontageKey) {
         Holder.Reference<AnimationMontage> montage = StaticRegistryAccess.getRegistryAccess().getOrThrow(animMontageKey);
         return animLayers.get(montage.value().layerSignature()).montagePlayer();
+    }
+
+    /// A null key stops the montage of every layer: there is no single montage player to ask for one.
+    @Override
+    public boolean stopPlayingMontage(final @Nullable ResourceKey<@NonNull AnimationMontage> animMontageKey) {
+        if (animMontageKey != null) return Animator.super.stopPlayingMontage(animMontageKey);
+
+        boolean stopped = false;
+
+        for (AnimationLayer animLayer : animLayers.values()) {
+            AnimationMontagePlayer montagePlayer = animLayer.montagePlayer();
+
+            if (montagePlayer.getPlayingMontage() != null && !montagePlayer.isFinished()) {
+                montagePlayer.terminate(null);
+                stopped = true;
+            }
+        }
+
+        if (owner instanceof EntityPatch<?> entityPatch && entityPatch.isLogicalServer()) {
+            AnimMontageSync.stop(entityPatch.getOriginal(), null);
+        }
+
+        return stopped;
     }
 
     @Override

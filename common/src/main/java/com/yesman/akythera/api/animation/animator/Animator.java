@@ -12,8 +12,7 @@ import com.yesman.akythera.core.animation.keyframe.Pose;
 import com.yesman.akythera.core.animation.playable.AnimationMontage;
 import com.yesman.akythera.core.asset.armature.Armature;
 import com.yesman.akythera.core.asset.loader.ArmatureLoader;
-import com.yesman.akythera.core.networking.NetworkingHelper;
-import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundPlayAnimMontage;
+import com.yesman.akythera.core.networking.AnimMontageSync;
 import com.yesman.akythera.core.reflection.ScriptFunction;
 import com.yesman.akythera.core.util.StaticRegistryAccess;
 import net.minecraft.core.Holder;
@@ -52,10 +51,7 @@ public interface Animator {
 
             // Montage authority is on server side, so if it's played in client side manual networking is required.
             if (owner instanceof EntityPatch<?> entityPatch && entityPatch.isLogicalServer()) {
-                NetworkingHelper.getInstance().sendToPlayersTrackingEntityWithSelfIfPlayer(
-                    entityPatch.getOriginal(),
-                    new ClientBoundPlayAnimMontage(animMontageKey.identifier(), section, entityPatch.getId())
-                );
+                AnimMontageSync.play(entityPatch.getOriginal(), animMontageKey, section);
             }
 
             ArmatureComponent armatureComponent = owner.findComponent(ArmatureComponent.class);
@@ -86,6 +82,8 @@ public interface Animator {
 
     /// Pause the montage being played immediately
     ///
+    /// Called on a logical server, the clients tracking the owner stop it as well.
+    ///
     /// @param animMontageKey A montage resource key to stop playing. Null if you want to pause any montage
     ///
     /// @return true when paused any of anim montage was being played
@@ -106,6 +104,11 @@ public interface Animator {
 
         if (animMontageKey == null || getMontagePlayer(animMontageKey).getPlayingMontage() == montageHolder) {
             getMontagePlayer(animMontageKey).terminate(montageHolder);
+
+            if (getOwner() instanceof EntityPatch<?> entityPatch && entityPatch.isLogicalServer()) {
+                AnimMontageSync.stop(entityPatch.getOriginal(), animMontageKey);
+            }
+
             return true;
         }
 
