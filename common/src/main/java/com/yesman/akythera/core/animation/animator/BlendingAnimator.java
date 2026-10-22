@@ -7,6 +7,7 @@ import com.yesman.akythera.api.animation.animator.Animator;
 import com.yesman.akythera.api.component.ComponentAttachable;
 import com.yesman.akythera.api.event.BuiltInEventHooks;
 import com.yesman.akythera.api.event.entity.animation.InitBlendingAnimatorEvent;
+import com.yesman.akythera.core.Akythera;
 import com.yesman.akythera.core.animation.AnimationLayerSignature;
 import com.yesman.akythera.core.animation.driver.*;
 import com.yesman.akythera.core.animation.keyframe.Pose;
@@ -105,10 +106,34 @@ public final class BlendingAnimator implements Animator {
         });
     }
 
+    /// Stands in for the montage player of a layer this animator does not have. Never ticked nor
+    /// blended, so a montage played there shows nothing.
+    private final AnimationMontagePlayer detachedMontagePlayer = new AnimationMontagePlayer();
+
+    /// The montage player of the layer `animMontageKey` plays on. A montage this side does not know,
+    /// or one aimed at a layer this animator's script did not build, gets [#detachedMontagePlayer]
+    /// and a warning instead of failing the caller (often a network handler).
     @Override
     public AnimationMontagePlayer getMontagePlayer(final ResourceKey<@NonNull AnimationMontage> animMontageKey) {
-        Holder.Reference<AnimationMontage> montage = StaticRegistryAccess.getRegistryAccess().getOrThrow(animMontageKey);
-        return animLayers.get(montage.value().layerSignature()).montagePlayer();
+        Holder.Reference<AnimationMontage> montage =
+            StaticRegistryAccess.getRegistryAccess().get(animMontageKey).orElse(null);
+
+        if (montage == null) {
+            Akythera.LOGGER.warn("No anim montage found: {}", animMontageKey.identifier());
+            return detachedMontagePlayer;
+        }
+
+        AnimationLayer animLayer = animLayers.get(montage.value().layerSignature());
+
+        if (animLayer == null) {
+            Akythera.LOGGER.warn(
+                "Anim montage {} plays on layer {}, which the animator of {} does not have",
+                animMontageKey.identifier(), montage.value().layerSignature(), owner
+            );
+            return detachedMontagePlayer;
+        }
+
+        return animLayer.montagePlayer();
     }
 
     @Override

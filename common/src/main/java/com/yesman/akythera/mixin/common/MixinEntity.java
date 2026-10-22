@@ -16,12 +16,28 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
 @Mixin(value = Entity.class)
 public abstract class MixinEntity implements EntityAccessor {
     /// A module that subscribes events triggered from original entity,
     @Unique @Nullable
     private EntityPatch<?> akythera$entityPatch;
 
+    /// Entity types whose patch already failed once, so a broken patch logs its stack trace once
+    /// instead of once per spawned entity.
+    @Unique
+    private static final Set<EntityType<?>> akythera$failedPatchTypes = ConcurrentHashMap.newKeySet();
+
+    /// Builds the patch at the end of [Entity]'s own constructor, before any subclass constructor
+    /// ran: a patch constructor must not read the subclass' fields (attributes, equipment, ...).
+    ///
+    /// Building it lazily on first access instead would move [BuiltInEventHooks.Entity#CONSTRUCTED]
+    /// and the components' setup to whichever code touches the patch first, possibly another thread
+    /// or the middle of a tick, so it is kept eager.
+    ///
+    /// A failing patch leaves the entity unpatched rather than failing the spawn.
     @Inject(
         at = @At(
             value = "TAIL"
@@ -32,7 +48,14 @@ public abstract class MixinEntity implements EntityAccessor {
         try {
             akythera$entityPatch = ComponentsFactory.getImpl().getEntityPatch((Entity)(Object) this);
         } catch (Exception e) {
-            Akythera.LOGGER.error("Failed at generating entity patch of entity type {}.", getClass().getSimpleName(), e);
+            if (akythera$failedPatchTypes.add(type)) {
+                Akythera.LOGGER.error(
+                    "Failed at generating entity patch of entity type {} ({}). Entities of this type stay unpatched.",
+                    EntityType.getKey(type), getClass().getSimpleName(), e
+                );
+            } else {
+                Akythera.LOGGER.debug("Failed at generating entity patch of entity type {}: {}", EntityType.getKey(type), e.toString());
+            }
         }
     }
 

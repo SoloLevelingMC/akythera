@@ -4,6 +4,7 @@ import com.yesman.akythera.api.event.BuiltInEventHooks;
 import com.yesman.akythera.api.event.registry.RegistryAccessEvent;
 import com.yesman.akythera.core.registry.AkytheraRegistries;
 import com.yesman.akythera.core.util.ClientOnly;
+import com.yesman.akythera.core.util.LogicalSide;
 import com.yesman.akythera.core.util.StaticRegistryAccess;
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.yesman.akythera.api.world.patch.item.ItemPatch;
@@ -20,9 +21,9 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /// A util class that helps extract **patches**, the epic fight dedicated modules for in-game
 /// objects like entities and items
@@ -35,36 +36,49 @@ public final class AkytheraPatches {
         BuiltInEventHooks.Registry.REGISTRY_ACCESS_UNLOAD.registerEvent(AkytheraPatches::clearCachedItemPatches);
     }
 
-    /// Cached [ItemPatch]s after [StaticRegistryAccess#getRegistryAccess] is loaded
+    /// Cached [ItemPatch]s of the logical server after [StaticRegistryAccess#getRegistryAccess] is loaded
     ///
     /// Since item patches can't be built on data pack load due to its parent-child hierarchy
-    /// the patch is initially assembled in first reference
-    private static final Map<Item, @Nullable ItemPatch> ITEM_PATCH_CACHE = new HashMap<>();
+    /// the patch is initially assembled in first reference. Empty for an item without a patch.
+    private static final Map<Item, Optional<ItemPatch>> SERVER_ITEM_PATCH_CACHE = new ConcurrentHashMap<>();
+
+    /// The logical client's twin of [#SERVER_ITEM_PATCH_CACHE]. An integrated server and its client
+    /// each build their own patches, so switching a component of one never reaches the other.
+    private static final Map<Item, Optional<ItemPatch>> CLIENT_ITEM_PATCH_CACHE = new ConcurrentHashMap<>();
 
     /// Unload registry access when quitting a world
     private static void clearCachedItemPatches(RegistryAccessEvent.Unload event) {
-        ITEM_PATCH_CACHE.clear();
+        (event.getSide() == LogicalSide.SERVER ? SERVER_ITEM_PATCH_CACHE : CLIENT_ITEM_PATCH_CACHE).clear();
     }
 
+    /// The patch of `itemStack`'s item on the calling thread's logical side, see [StaticRegistryAccess].
+    ///
+    /// One patch serves every stack of an item on that side, so a component switched on it (see
+    /// [com.yesman.akythera.api.component.PatchComponent#setEnabled]) is switched for every holder of
+    /// the item, not only for one entity or stack.
     public static @Nullable ItemPatch getItemPatch(ItemStack itemStack) {
         Item item = itemStack.getItem();
+        Map<Item, Optional<ItemPatch>> cache = StaticRegistryAccess.isServerRegistryAccessInUse()
+            ? SERVER_ITEM_PATCH_CACHE
+            : CLIENT_ITEM_PATCH_CACHE;
+        Optional<ItemPatch> cached = cache.get(item);
 
-        if (!ITEM_PATCH_CACHE.containsKey(item)) {
+        if (cached == null) {
             ResourceKey<ItemPatchBlueprint> itemPatchResourceKey =
                 ResourceKey.create(
                     AkytheraRegistries.DataPack.ITEM_PATCH_KEY,
                     Identifier.parse(item.builtInRegistryHolder().getRegisteredName())
                 );
 
-            ITEM_PATCH_CACHE.put(
-                item,
-                StaticRegistryAccess.getRegistryAccess().get(itemPatchResourceKey)
-                    .map(blueprint -> blueprint.value().instantiate(item))
-                    .orElse(null)
-            );
+            // Built outside the map, since building a patch may look up its parents' patches.
+            Optional<ItemPatch> built = StaticRegistryAccess.getRegistryAccess().get(itemPatchResourceKey)
+                .map(blueprint -> blueprint.value().instantiate(item));
+            Optional<ItemPatch> raced = cache.putIfAbsent(item, built);
+
+            cached = raced != null ? raced : built;
         }
 
-        return ITEM_PATCH_CACHE.get(item);
+        return cached.orElse(null);
     }
 
     /// This method should remain as the secondary option, especially when you can't fix local variables inside lambda expression.

@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.input;
 
+import com.yesman.akythera.core.util.LogicalSide;
 import com.yesman.akythera.api.event.BuiltInEventHooks;
 import com.yesman.akythera.api.input.InputAction;
 import com.yesman.akythera.api.world.ability.Ability;
@@ -32,7 +33,9 @@ public final class AbilityInputBinder {
     /// Releases every binding when the client leaves the world it bound them in.
     @ApiStatus.Internal
     public static void registerEvents() {
-        BuiltInEventHooks.Registry.REGISTRY_ACCESS_UNLOAD.registerEvent(event -> unbindAll());
+        BuiltInEventHooks.Registry.REGISTRY_ACCESS_UNLOAD.registerEvent(event -> {
+            if (event.getSide() == LogicalSide.CLIENT) unbindAll();
+        });
     }
 
     /// Rebinds `slot` to whatever the ability now in it reads. An ability that names no
