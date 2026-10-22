@@ -19,7 +19,7 @@ Différences avec l'amont :
 - **Shaders de calcul retirés** (`common/src/main/resources/assets/akythera/shaders/compute/*.comp`, couverts par `LICENSE-ASSETS`). `fabric/build.gradle.kts` les exclut aussi du jar, au cas où une fusion de l'amont les ramènerait.
 - **Garde-fou** : `ClientComponentsFactory.inspectDeviceSpec` désactive le chemin « compute » quand ces sources sont absentes. Akythera se comporte alors comme sur une carte graphique sans compute shaders : maillages animés sur le processeur, pas de simulation de tissu, pas de traînées `TrailRenderer`. Le mod Solo Leveling n'utilise aucune de ces fonctions (joueur animé par Player Animation Library et BendableCuboids, traînées d'arme propres au mod).
 - **Langue réécrite** : `assets/akythera/lang/en_us.json` d'origine remplacé par nos propres textes, en anglais et en français (`fr_fr.json`). Mêmes clés.
-- **Version** : `0.2.0-SNAPSHOT.4-sl.1` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.1`.
+- **Version** : `0.2.0-SNAPSHOT.4-sl.2` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.1`.
 - **Liens** (`gradle.properties`) : sources et suivi des problèmes pointent vers ce fork.
 - **Publication** : dépôt Maven `GitHubPackages` dans `fabric/build.gradle.kts` et workflow `.github/workflows/publish.yml`.
 
@@ -28,7 +28,7 @@ Le code reste sous la licence du dépôt (`LICENSE`). `LICENSE-ASSETS` est conse
 ## Paquet publié
 
 - Dépôt Maven : `https://maven.pkg.github.com/SoloLevelingMC/akythera`
-- Coordonnées : `io.github.yesssssman.akythera:akythera-fabric:26.2-0.2.0-SNAPSHOT.4-sl.1`
+- Coordonnées : `io.github.yesssssman.akythera:akythera-fabric:26.2-0.2.0-SNAPSHOT.4-sl.2`
 
 GitHub Packages exige un jeton même en lecture (jeton personnel avec `read:packages`, ou `GITHUB_TOKEN` d'un dépôt autorisé dans les réglages du paquet) :
 
