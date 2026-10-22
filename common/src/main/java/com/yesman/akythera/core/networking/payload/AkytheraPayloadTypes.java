@@ -59,7 +59,7 @@ public final class AkytheraPayloadTypes {
 		// server bound packets
 		SERVER_BOUND.add(new PayloadChannel<>(ServerBoundAbilityTrigger.TYPE, ServerBoundAbilityTrigger.STREAM_CODEC, () -> AkytheraServerBoundPayloadHandler::handleAbilityTrigger));
 
-		// bi-directional packets
+		// bi-directional packets. Only clients receive them: a server never registers their handlers.
 		BI_DIRECTIONAL.add(new PayloadChannel<>(BiDirectionalReplaceAnimation.TYPE, BiDirectionalReplaceAnimation.STREAM_CODEC, () -> AkytheraBiDirectionalPayloadHandler::handleReplaceAnimation));
 	}
 }

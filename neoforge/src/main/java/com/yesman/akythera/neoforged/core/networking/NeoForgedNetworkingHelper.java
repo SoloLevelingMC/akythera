@@ -21,6 +21,7 @@ import net.neoforged.neoforge.network.registration.PayloadRegistrar;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.BiConsumer;
+import java.util.stream.Stream;
 
 public final class NeoForgedNetworkingHelper extends NetworkingHelper {
     @ClientOnly
@@ -72,7 +73,9 @@ public final class NeoForgedNetworkingHelper extends NetworkingHelper {
     public static void register(final RegisterPayloadHandlersEvent event) {
         final PayloadRegistrar payloadRegistrar = event.registrar(PROTOCOL_VERSION);
 
-        AkytheraPayloadTypes.CLIENT_BOUND.forEach(payloadChannel ->
+        // Bi-directional payloads are only received by clients: their handlers trust what they read,
+        // so a server never lets a client drive them.
+        Stream.concat(AkytheraPayloadTypes.CLIENT_BOUND.stream(), AkytheraPayloadTypes.BI_DIRECTIONAL.stream()).forEach(payloadChannel ->
             payloadRegistrar.playToClient(
                 (CustomPacketPayload.Type<CustomPacketPayload>)payloadChannel.type(),
                 (StreamCodec<? super RegistryFriendlyByteBuf, CustomPacketPayload>)payloadChannel.streamCodec(),
@@ -84,15 +87,6 @@ public final class NeoForgedNetworkingHelper extends NetworkingHelper {
             payloadRegistrar.playToServer(
                 (CustomPacketPayload.Type<CustomPacketPayload>)payloadChannel.type(),
                 (StreamCodec<? super RegistryFriendlyByteBuf, CustomPacketPayload>)payloadChannel.streamCodec(),
-                mapContext((BiConsumer<CustomPacketPayload, PayloadContext>)payloadChannel.handler().get())
-            )
-        );
-
-        AkytheraPayloadTypes.BI_DIRECTIONAL.forEach(payloadChannel ->
-            payloadRegistrar.playBidirectional(
-                (CustomPacketPayload.Type<CustomPacketPayload>)payloadChannel.type(),
-                (StreamCodec<? super RegistryFriendlyByteBuf, CustomPacketPayload>)payloadChannel.streamCodec(),
-                mapContext((BiConsumer<CustomPacketPayload, PayloadContext>)payloadChannel.handler().get()),
                 mapContext((BiConsumer<CustomPacketPayload, PayloadContext>)payloadChannel.handler().get())
             )
         );

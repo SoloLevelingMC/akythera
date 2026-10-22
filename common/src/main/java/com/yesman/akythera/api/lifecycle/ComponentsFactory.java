@@ -19,6 +19,7 @@ import com.yesman.akythera.core.util.LogicalSide;
 import com.yesman.akythera.core.util.StaticRegistryAccess;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -28,9 +29,13 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.PlayerSkin;
 import org.jspecify.annotations.Nullable;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
+import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -100,6 +105,12 @@ public abstract class ComponentsFactory {
         return getDataPackEntityPatch(entity);
     }
 
+    /// Entity types a registry declares no patch for, per registry instance: one per logical side and
+    /// loaded world, dropped with it. Entities are built on the server, client and world generation
+    /// threads alike.
+    private final Map<Registry<EntityPatchBlueprint>, Set<EntityType<?>>> typesWithoutPatch =
+        Collections.synchronizedMap(new WeakHashMap<>());
+
     /// The patch a data pack declares for `entity`'s type, or null when it declares none.
     @SuppressWarnings("unchecked")
     public <T extends Entity> @Nullable EntityPatch<T> getDataPackEntityPatch(T entity) {
@@ -109,10 +120,18 @@ public abstract class ComponentsFactory {
             return null;
         }
 
-        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
-        Holder.Reference<EntityPatchBlueprint> entityPatchBlueprint = registryOptional.get().get(entityId).orElse(null);
+        Registry<EntityPatchBlueprint> registry = registryOptional.get();
+        Set<EntityType<?>> withoutPatch = typesWithoutPatch.computeIfAbsent(registry, _ -> ConcurrentHashMap.newKeySet());
 
-        if (entityPatchBlueprint == null) return null;
+        if (withoutPatch.contains(entity.getType())) return null;
+
+        Identifier entityId = BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType());
+        Holder.Reference<EntityPatchBlueprint> entityPatchBlueprint = registry.get(entityId).orElse(null);
+
+        if (entityPatchBlueprint == null) {
+            withoutPatch.add(entity.getType());
+            return null;
+        }
 
         ScriptFunction patchCtor = entityPatchBlueprint.value().ctor();
 

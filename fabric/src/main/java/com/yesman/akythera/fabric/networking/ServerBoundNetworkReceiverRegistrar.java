@@ -10,8 +10,11 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import org.jspecify.annotations.NonNull;
 
 import java.util.function.BiConsumer;
-import java.util.stream.Stream;
 
+/// Registers what a client may send.
+///
+/// [AkytheraPayloadTypes#BI_DIRECTIONAL] stays client bound only: its handlers act on the
+/// receiver's animator without checking anything, which a server must never let a client drive.
 @SuppressWarnings("unchecked")
 public final class ServerBoundNetworkReceiverRegistrar {
     /// Maps a payload handler to use [PayloadContext] instead [ServerPlayNetworking.Context]
@@ -23,7 +26,7 @@ public final class ServerBoundNetworkReceiverRegistrar {
 
     // Register stream codecs
     public static void registerTypes() {
-        Stream.concat(AkytheraPayloadTypes.SERVER_BOUND.stream(), AkytheraPayloadTypes.BI_DIRECTIONAL.stream()).forEach(
+        AkytheraPayloadTypes.SERVER_BOUND.forEach(
             payloadChannel ->
                 PayloadTypeRegistry.serverboundPlay().register(
                     (CustomPacketPayload.Type<CustomPacketPayload>)payloadChannel.type(),
@@ -34,7 +37,7 @@ public final class ServerBoundNetworkReceiverRegistrar {
 
     // Register receivers
     public static void registerReceivers() {
-        Stream.concat(AkytheraPayloadTypes.SERVER_BOUND.stream(), AkytheraPayloadTypes.BI_DIRECTIONAL.stream()).forEach(
+        AkytheraPayloadTypes.SERVER_BOUND.forEach(
             payloadChannel ->
                 ServerPlayNetworking.registerGlobalReceiver(
                     (CustomPacketPayload.Type<CustomPacketPayload>)payloadChannel.type(),

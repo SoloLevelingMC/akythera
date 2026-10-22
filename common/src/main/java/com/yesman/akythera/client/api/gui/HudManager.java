@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.yesman.akythera.core.util.LogicalSide;
 import com.mojang.blaze3d.platform.Window;
 import com.yesman.akythera.api.event.BuiltInEventHooks;
 import com.yesman.akythera.client.api.gui.script.HUDScript;
@@ -28,7 +29,9 @@ public final class HudManager {
         BuiltInEventHooks.Entity.CONSTRUCTED.registerEvent(event -> {
             if (event.getEntityPatch().getOriginal() instanceof LocalPlayer) INSTANCE.clear();
         });
-        BuiltInEventHooks.Registry.REGISTRY_ACCESS_UNLOAD.registerEvent(_ -> INSTANCE.clear());
+        BuiltInEventHooks.Registry.REGISTRY_ACCESS_UNLOAD.registerEvent(event -> {
+            if (event.getSide() == LogicalSide.CLIENT) INSTANCE.clear();
+        });
     }
 
     /// The shown HUDs in draw order.

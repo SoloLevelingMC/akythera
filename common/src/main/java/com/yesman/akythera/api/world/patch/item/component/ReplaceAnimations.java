@@ -42,6 +42,9 @@ public final class ReplaceAnimations implements UniqueComponent, ComponentBluepr
 
     /// Whether this component takes part, see [PatchComponent#isEnabled]. On the authored component,
     /// the state every copy starts in.
+    ///
+    /// A patch from [com.yesman.akythera.api.world.patch.AkytheraPatches#getItemPatch] is one per item
+    /// and logical side: switching it switches it for every holder of the item on that side.
     private boolean enabled;
 
     public ReplaceAnimations(

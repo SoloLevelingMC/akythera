@@ -15,6 +15,9 @@ import org.jspecify.annotations.Nullable;
 ///
 /// A null codec in a direction means the state is not a sync target that way. Fields a codec
 /// leaves out keep their current value on the receiving side.
+///
+/// Nothing travels from client to server unless the state opts in by overriding
+/// [#serverBoundCodec]: whatever that codec reads, a client controls.
 @ScriptType
 public interface AbilityState {
     /// The state an ability that declares no variables receives: nothing to sync, never dirty.
@@ -46,8 +49,10 @@ public interface AbilityState {
 
     @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> streamCodec();
 
+    /// The fields a client may write into the server's state when it triggers the ability. Null by
+    /// default, so a state never accepts client input it did not explicitly ask for.
     default @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> serverBoundCodec() {
-        return streamCodec();
+        return null;
     }
 
     default @Nullable StreamCodec<? super RegistryFriendlyByteBuf, ? extends AbilityState> clientBoundCodec() {
@@ -98,6 +103,8 @@ public interface AbilityState {
 
     /// Reads `bytes` into `state` in place.
     ///
+    /// Use [#decodeAtomically] for bytes from an untrusted sender.
+    ///
     /// @return whether the bytes were exactly one encoding. Fields read before a fault stay written
     static boolean decode(
         final AbilityState state,
@@ -117,5 +124,29 @@ public interface AbilityState {
         } finally {
             buffer.release();
         }
+    }
+
+    /// Reads `bytes` into `scratch`, a copy of `state`, and copies the result back into `state` only
+    /// when the bytes were exactly one encoding. A fault leaves `state` untouched.
+    ///
+    /// @param scratch a state of the same ability as `state`, built by [Ability#createState]. Its
+    ///                values are overwritten
+    /// @return whether `state` was written
+    static boolean decodeAtomically(
+        final AbilityState state,
+        final AbilityState scratch,
+        final PacketFlow flow,
+        final byte[] bytes,
+        final Level level
+    ) {
+        if (scratch == state) return decode(state, flow, bytes, level);
+
+        scratch.copyState(state);
+
+        if (!decode(scratch, flow, bytes, level)) return false;
+
+        state.copyState(scratch);
+
+        return true;
     }
 }
