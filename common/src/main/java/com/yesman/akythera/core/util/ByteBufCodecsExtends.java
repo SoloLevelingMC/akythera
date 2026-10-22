@@ -7,6 +7,7 @@ import com.yesman.akythera.api.asset.AssetAccessor;
 import com.yesman.akythera.api.data.modularize.ScriptType;
 import com.yesman.akythera.core.registry.AkytheraRegistries;
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.DecoderException;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -224,9 +225,19 @@ public interface ByteBufCodecsExtends {
             buffer.writeInt(value.ordinal());
         }
 
+        /// @throws DecoderException for an ordinal outside the enum, which the network layer turns into
+        ///                          a clean disconnect of the sender
         @Override
         public T decode(B buffer) {
-            return enumValues[buffer.readInt()];
+            int ordinal = buffer.readInt();
+
+            if (ordinal < 0 || ordinal >= enumValues.length) {
+                throw new DecoderException(
+                    "Enum ordinal " + ordinal + " out of bounds for " + enumValues.getClass().getComponentType().getSimpleName()
+                );
+            }
+
+            return enumValues[ordinal];
         }
     }
 

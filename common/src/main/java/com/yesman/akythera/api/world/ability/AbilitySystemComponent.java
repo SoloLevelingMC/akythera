@@ -17,6 +17,7 @@ import com.yesman.akythera.core.util.StaticRegistryAccess;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
+import com.yesman.akythera.core.networking.AbilityTriggerRateLimiter;
 import com.yesman.akythera.core.networking.NetworkingHelper;
 import com.yesman.akythera.core.reflection.ScriptFunction;
 import com.yesman.akythera.core.networking.payload.clientbound.ClientBoundAbilityEffectSync;
@@ -103,6 +104,9 @@ public final class AbilitySystemComponent
         });
     }
 
+    /// How many trigger packets the owning player's client gets through, see [AbilityTriggerRateLimiter].
+    private final AbilityTriggerRateLimiter triggerRateLimiter = new AbilityTriggerRateLimiter();
+
     public AbilitySystemComponent(final LivingEntityPatch<?> owner) {
         this(owner, Map.of());
     }
@@ -113,6 +117,11 @@ public final class AbilitySystemComponent
     ) {
         this.owner = owner;
         this.pendingLoadout = Map.copyOf(loadout);
+    }
+
+    @ApiStatus.Internal
+    public AbilityTriggerRateLimiter getTriggerRateLimiter() {
+        return triggerRateLimiter;
     }
 
     /// Equips `ability` into `slot`, replacing whatever the slot held.

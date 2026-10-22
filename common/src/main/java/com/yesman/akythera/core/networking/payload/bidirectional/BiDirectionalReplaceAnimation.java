@@ -12,13 +12,20 @@ import org.jspecify.annotations.NullMarked;
 import java.util.List;
 
 @NullMarked
+/// Replaces animation interfaces of the receiver's animator.
+///
+/// Only a client receives it. A server never registers a handler for it, so a client cannot drive
+/// another animator through it.
 public record BiDirectionalReplaceAnimation(List<ReplaceAnimations.ReplaceEntry> entries, boolean reset) implements CustomPacketPayload {
     public static final CustomPacketPayload.Type<BiDirectionalReplaceAnimation> TYPE =
         new CustomPacketPayload.Type<>(Identifier.fromNamespaceAndPath(Akythera.MODID, "replace_animation"));
 
+    /// More entries than an animator has interfaces. A longer list fails in the decoder.
+    public static final int MAX_ENTRIES = 256;
+
     public static final StreamCodec<RegistryFriendlyByteBuf, BiDirectionalReplaceAnimation> STREAM_CODEC =
         StreamCodec.composite(
-            ReplaceAnimations.ReplaceEntry.STREAM_CODEC.apply(ByteBufCodecs.list()),
+            ReplaceAnimations.ReplaceEntry.STREAM_CODEC.apply(ByteBufCodecs.list(MAX_ENTRIES)),
             BiDirectionalReplaceAnimation::entries,
             ByteBufCodecs.BOOL,
             BiDirectionalReplaceAnimation::reset,
