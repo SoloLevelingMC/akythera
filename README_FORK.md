@@ -23,7 +23,7 @@ Différences avec l'amont :
 - **Versions alignées sur le mod** : Fabric Loader 0.19.5, Fabric API 0.161.0+26.2, Loom 1.18.4 (épinglé, plus de SNAPSHOT), Gradle 9.7.1 (exigé par Loom 1.18), Mixin et ASM aux versions livrées par Fabric Loader.
 - **Accès fragiles isolés** : `ArmorRendererRegistryImpl` (interne à Fabric API, sans équivalent public en 0.161.0) n'est appelé que depuis `AkytheraFabricClient#armorRendererOf` ; `PlayerAnimBone.bend` (déprécié pour suppression dans PAL) n'est écrit que depuis `PlayerAnimationLibraryPlugin#setBend`. À revoir à chaque mise à jour de Fabric API ou de PAL.
 - **Langue réécrite** : `assets/akythera/lang/en_us.json` d'origine remplacé par nos propres textes, en anglais et en français (`fr_fr.json`). Mêmes clés.
-- **Version** : `0.2.0-SNAPSHOT.4-sl.2` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.1`.
+- **Version** : `0.2.0-SNAPSHOT.4-sl.2` (version amont suivie de `-sl.<n>`). Le paquet Maven porte, comme l'amont, la version Minecraft devant : `26.2-0.2.0-SNAPSHOT.4-sl.2`.
 - **Liens** (`gradle.properties`) : sources et suivi des problèmes pointent vers ce fork.
 - **Publication** : dépôt Maven `GitHubPackages` dans `fabric/build.gradle.kts` et workflow `.github/workflows/publish.yml`.
 
