@@ -1,6 +1,7 @@
 package com.yesman.akythera.core.animation.animator;
 
 import com.yesman.akythera.api.animation.animator.Animator;
+import com.yesman.akythera.api.component.impl.ArmatureComponent;
 import com.yesman.akythera.api.component.ComponentAttachable;
 import com.yesman.akythera.core.animation.driver.AnimationMontagePlayer;
 import com.yesman.akythera.core.animation.keyframe.Pose;
@@ -29,8 +30,16 @@ public final class MontageOnlyAnimator implements Animator {
         return montagePlayer;
     }
 
+    /// Advances the montage. On a logical server [ArmatureComponent#tick] calls this once per tick, before
+    /// [#tick] fires the notifies of the time it moved through.
     @Override
     public void update(final float timeFrame, final float partialTick) {
+        if (!isHardPaused) montagePlayer.update(timeFrame);
+    }
+
+    @Override
+    public float getMontageWeight() {
+        return montagePlayer.getWeight();
     }
 
     @Override

@@ -1,7 +1,10 @@
 package com.yesman.akythera.mixin.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.yesman.akythera.api.component.impl.ArmatureComponent;
 import com.yesman.akythera.api.world.patch.AkytheraPatches;
+import com.yesman.akythera.client.api.component.impl.ModelPartPoseBinder;
+import com.yesman.akythera.client.core.renderer.ModelPartPoser;
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
 import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.client.core.renderer.collider.ColliderDebugRenderer;
@@ -33,6 +36,9 @@ import java.util.List;
 @Mixin(LivingEntityRenderer.class)
 public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extends LivingEntityRenderState, M extends EntityModel<? super S>> {
     @Shadow
+    protected M model;
+
+    @Shadow
     protected abstract void setupRotations(S state, PoseStack poseStack, float bodyRot, float entityScale);
 
     @Shadow
@@ -54,17 +60,43 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
         stateAccessor.akythera$setModelDraw(null);
         stateAccessor.akythera$setVanillaModelHidden(false);
         stateAccessor.akythera$setArmaturePlaced(false);
+        stateAccessor.akythera$setPartPose(null);
 
         AkytheraPatches.getEntityPatchOptional(entity).ifPresent(entityPatch -> {
             PatchModelRenderer.collect(entityPatch, null, renderables);
             PatchModelRenderer.extract(renderables, entityPatch, state, partialTick);
             stateAccessor.akythera$setVanillaModelHidden(entityPatch.isBlockingVanillaRender());
-            stateAccessor.akythera$setArmaturePlaced(entityPatch.getArmatureComponent() != null);
+
+            ArmatureComponent armatureComponent = entityPatch.getArmatureComponent();
+            ModelPartPoseBinder partBinder = armatureComponent == null ? null : armatureComponent.getComponent(ModelPartPoseBinder.class);
+
+            // A model posed part by part stays placed by its renderer: the offsets are relative to its parts.
+            stateAccessor.akythera$setArmaturePlaced(armatureComponent != null && partBinder == null);
+
+            if (partBinder != null) stateAccessor.akythera$setPartPose(partBinder.snapshot(armatureComponent));
 
             if (ColliderDebugRenderer.isEnabled()) {
                 ColliderDebugRenderer.collect(entityPatch, colliders);
             }
         });
+    }
+
+    /// Moves the parts of the entity's model by its [ModelPartPoseBinder], after the model's own animation, so
+    /// the layers that read part transforms while submitting (held items, head items) see the posed parts.
+    @Inject(
+        method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
+        at = @At(
+            value = "INVOKE",
+            target = "Lnet/minecraft/client/model/EntityModel;setupAnim(Ljava/lang/Object;)V",
+            shift = At.Shift.AFTER
+        )
+    )
+    private void akythera$poseModelParts(
+        final S state, final PoseStack poseStack, final SubmitNodeCollector collector, final CameraRenderState camera, final CallbackInfo callbackInfo
+    ) {
+        ModelPartPoseBinder.Snapshot partPose = ((LivingEntityRenderStateAccessor)state).akythera$getPartPose();
+
+        if (partPose != null) ModelPartPoser.apply(model, partPose);
     }
 
     /// Turns an armature-placed model by its body yaw alone, as [EntityPatch#getModelTransform] does.

@@ -55,7 +55,8 @@ public final class AnimationMontage implements PlayableAnimation {
                 Codec.FLOAT.fieldOf("fade_in_time").forGetter(AnimationMontage::fadeInTime),
                 Codec.FLOAT.fieldOf("fade_out_time").forGetter(AnimationMontage::fadeOutTime),
                 Codec.BOOL.fieldOf("loops").forGetter(AnimationMontage::loops),
-                Codec.BOOL.fieldOf("root_motion").forGetter(AnimationMontage::rootMotion)
+                Codec.BOOL.fieldOf("root_motion").forGetter(AnimationMontage::rootMotion),
+                Codec.BOOL.optionalFieldOf("holds_last_pose", false).forGetter(AnimationMontage::holdsLastPose)
             )
             .apply(instance, AnimationMontage::new)
     );
@@ -99,6 +100,10 @@ public final class AnimationMontage implements PlayableAnimation {
     /// field to judge whether the montage actually loops or not.
     private final boolean loops;
 
+    /// Whether the montage holds its last pose when its playback reaches the end, until it is terminated
+    /// or replaced. Otherwise a montage that doesn't [#loops] fades out by itself at its end.
+    private final boolean holdsLastPose;
+
     /// Whether **Root Motion** is enabled
     ///
     /// If enabled, playing the montage will sync the entity's location to the bone named `root`
@@ -121,7 +126,8 @@ public final class AnimationMontage implements PlayableAnimation {
         final float fadeInTime,
         final float fadeOutTime,
         final boolean loops,
-        final boolean rootMotion
+        final boolean rootMotion,
+        final boolean holdsLastPose
     ) {
         this.notifyTrack = notifyTrack;
         this.sectionInfo = sectionInfo;
@@ -131,6 +137,7 @@ public final class AnimationMontage implements PlayableAnimation {
         this.layerSignature = layerSignature;
         this.loops = loops;
         this.rootMotion = rootMotion;
+        this.holdsLastPose = holdsLastPose;
         this.mergedClip = Suppliers.memoize(this::buildMergedClip);
     }
 
@@ -273,6 +280,10 @@ public final class AnimationMontage implements PlayableAnimation {
         return loops;
     }
 
+    public boolean holdsLastPose() {
+        return holdsLastPose;
+    }
+
     public AnimationNotifyTrack notifyTrack() {
         return notifyTrack;
     }
@@ -301,6 +312,7 @@ public final class AnimationMontage implements PlayableAnimation {
         float fadeOutTime = 0.2F;
         boolean loops;
         boolean enableRootMotion;
+        boolean holdsLastPose;
 
         private Builder() {}
 
@@ -338,7 +350,9 @@ public final class AnimationMontage implements PlayableAnimation {
         ///
         /// Core rule: **one transition per section.** A section may appear in many sequences, but it must
         /// always lead to the same next section. Defining both `A`->`B` and `A`->`C` is ambiguous and throws
-        /// at build. A section with no defined next pauses (holds its end pose) until terminated or jumped.
+        /// at build. A section with no defined next pauses (holds its end pose) until terminated or jumped,
+        /// unless it is the last section: the end of the montage loops, fades out or holds as [#loops] and
+        /// [#holdsLastPose] say.
         ///
         /// In the example above, if you want to play fire animationsToReplace, you should call
         /// [Animator#playAnimMontage(ResourceKey, String)] once again with `Fire` section name.
@@ -383,6 +397,13 @@ public final class AnimationMontage implements PlayableAnimation {
             return this;
         }
 
+        /// Determines whether the montage holds its last pose at the end of its playback, until terminated,
+        /// instead of fading out by itself. Ignored by a looping montage.
+        public Builder holdsLastPose(final boolean holdsLastPose) {
+            this.holdsLastPose = holdsLastPose;
+            return this;
+        }
+
         /// Determines whether the montage activate root motion
         ///
         /// If enabled, playing the montage will sync the player movement to the bone named `root`
@@ -406,7 +427,8 @@ public final class AnimationMontage implements PlayableAnimation {
                 fadeInTime,
                 fadeOutTime,
                 loops,
-                enableRootMotion
+                enableRootMotion,
+                holdsLastPose
             );
         }
     }

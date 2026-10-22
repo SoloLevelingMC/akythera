@@ -21,10 +21,14 @@ import java.util.List;
 
 /// An animation player dedicated to playing [AnimationMontage]
 ///
-/// The player automatically be faded out when the animation elapse time
-/// reaches [AnimationMontage#getTotalFrameTime] if [AnimationMontage#loops()]
-/// is false. Otherwise, the montage will be the blended in final pose forever
-/// so manual call of [#terminate] will be required.
+/// When the elapsed time reaches [AnimationMontage#getTotalFrameTime] through the
+/// montage's last section, the player
+/// - starts over from the beginning if [AnimationMontage#loops()],
+/// - holds the last pose until [#terminate] if [AnimationMontage#holdsLastPose()],
+/// - otherwise completes the montage (callbacks see it as not interrupted) and fades it out.
+///
+/// A section that ends before the montage does, with no next section, still pauses on
+/// its end pose until terminated or jumped.
 ///
 /// The player will start increase [#elapsedTime] and fully deactivated until
 /// [#fadeTime] becomes 1 or 0 in each case. This means the fade-in and fade-out
@@ -105,8 +109,8 @@ public final class AnimationMontagePlayer implements AnimationDriver {
     ///
     /// @param animMontage give null if you want to terminate any montage
     public void terminate(final Holder.@Nullable Reference<@NonNull AnimationMontage> animMontage) {
-        if (currentPlaying == null || animMontage != null && !animMontage.equals(currentPlaying)) {
-            // Do nothing when current playing is null or given montage is not matching
+        if (currentPlaying == null || !fadingInOrOut || animMontage != null && !animMontage.equals(currentPlaying)) {
+            // Do nothing when current playing is null, already fading out, or given montage is not matching
             return;
         }
 
@@ -187,11 +191,26 @@ public final class AnimationMontagePlayer implements AnimationDriver {
                     String nextSectionName = sectionInfo.getNextSection(currentSectionName);
 
                     if (nextSectionName == null) {
-                        // No transition defined → pause at the section end and hold the pose. Stay active
-                        // so the caller can jumpToSection (play another sequence) or terminate() explicitly.
-                        float end = Math.min(currentSectionWindow.to(), currentPlaying.value().getTotalFrameTime());
-                        elapsedTime = end;
-                        lastUpdatedTime = end; // so notifies between here and `end` don't re-fire each tick
+                        AnimationMontage montage = currentPlaying.value();
+                        float totalTime = montage.getTotalFrameTime();
+                        float end = currentSectionWindow == null ? totalTime : Math.min(currentSectionWindow.to(), totalTime);
+
+                        if (end >= totalTime && montage.loops() && totalTime > 0.0F) {
+                            // The montage ends: start over, carrying the time past the end.
+                            float deltaPlus = Math.min(elapsedTime + frameTime - totalTime, totalTime);
+                            lastUpdatedTime = -(totalTime - elapsedTime);
+                            elapsedTime = deltaPlus;
+                        } else if (end >= totalTime && !montage.holdsLastPose()) {
+                            // The montage ends: complete it and fade it out. The next tick still fires the
+                            // notifies up to `end`.
+                            elapsedTime = end;
+                            finish();
+                        } else {
+                            // No transition defined → pause at the section end and hold the pose. Stay active
+                            // so the caller can jumpToSection (play another sequence) or terminate() explicitly.
+                            elapsedTime = end;
+                            lastUpdatedTime = end; // so notifies between here and `end` don't re-fire each tick
+                        }
                     } else {
                         // Set elapsed times to the next section
                         float deltaMinus = currentSectionWindow.to() - elapsedTime;
@@ -205,6 +224,16 @@ public final class AnimationMontagePlayer implements AnimationDriver {
                 }
             }
         }
+    }
+
+    /// Completes the playing montage at its end, then fades it out like [#terminate] does.
+    private void finish() {
+        if (montageCallbackHandle != null) montageCallbackHandle.triggerComplete(null, false);
+
+        cachedLastMontagePose = currentPlaying.value().getPose(elapsedTime);
+        fadeTime = currentPlaying.value().fadeOutTime();
+        fadingInOrOut = false;
+        isFinished = true;
     }
 
     public Holder.@Nullable Reference<@NonNull AnimationMontage> getPlayingMontage() {

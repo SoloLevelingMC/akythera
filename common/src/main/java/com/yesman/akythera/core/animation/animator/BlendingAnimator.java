@@ -180,6 +180,18 @@ public final class BlendingAnimator implements Animator {
         return animScript.getFinalPose(animLayers);
     }
 
+    /// The heaviest montage weight among the layers.
+    @Override
+    public float getMontageWeight() {
+        float weight = 0.0F;
+
+        for (AnimationLayer animLayer : animLayers.values()) {
+            weight = Math.max(weight, animLayer.montagePlayer().getWeight());
+        }
+
+        return weight;
+    }
+
     /// Presence of named pose cache must be validated first. Use [#hasPoseCache] to conduct it.
     public AnimationDriver getCachedPoseDriver(final String cacheName) throws IllegalStateException {
         if (!cachedPoseDrivers.containsKey(cacheName)) throw new IllegalStateException("No pose cache for " + cacheName);

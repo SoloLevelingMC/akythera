@@ -16,6 +16,7 @@
     "client.MixinLivingEntityRenderer",
     "client.MixinLivingEntityRenderState",
     "client.MixinMinecraft",
+    "client.MixinModelFeatureRenderer",
     "client.MixinParticle",
     "client.MixinParticleEngine",
     "client.MixinPreparedFrame",

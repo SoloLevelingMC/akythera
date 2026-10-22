@@ -1,6 +1,7 @@
 package com.yesman.akythera.mixinaccessor.client;
 
 import com.yesman.akythera.api.world.patch.entity.EntityPatch;
+import com.yesman.akythera.client.api.component.impl.ModelPartPoseBinder;
 import com.yesman.akythera.client.core.renderer.PatchModelRenderer;
 import com.yesman.akythera.client.core.renderer.collider.ColliderDebugRenderer;
 import net.minecraft.client.renderer.item.ItemStackRenderState;
@@ -35,6 +36,12 @@ public interface LivingEntityRenderStateAccessor {
     boolean akythera$isArmaturePlaced();
 
     void akythera$setArmaturePlaced(boolean armaturePlaced);
+
+    /// The part offsets a [ModelPartPoseBinder] puts on the models drawn with this state this frame, or
+    /// null.
+    ModelPartPoseBinder.@Nullable Snapshot akythera$getPartPose();
+
+    void akythera$setPartPose(ModelPartPoseBinder.@Nullable Snapshot partPose);
 
     /// The item render state for one slot in one display context, created on first request and reused
     /// every frame after.
