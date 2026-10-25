@@ -25,10 +25,15 @@ public final class AkytheraClientConfig {
         .comment("Whether to use built-in or external library mod to apply animation to the model")
         .define("anim_driver", DefaultAnimationDriver.SKINNED_MESH);
 
+    public static final ModConfigSpec.BooleanValue ANIMATION_LOD = BUILDER
+        .comment("Whether entities far from the camera are posed less often (40 times a second past 32 blocks, 20 past 64)")
+        .define("anim_lod", true);
+
     public static final ModConfigSpec SPEC = BUILDER.build();
 
     // config values
     private static DefaultAnimationDriver defaultAnimationDriver = DefaultAnimationDriver.SKINNED_MESH;
+    private static boolean animationLod = true;
 
     public static DefaultAnimationDriver getDefaultAnimationDriver() {
         return defaultAnimationDriver;
@@ -38,14 +43,24 @@ public final class AkytheraClientConfig {
         defaultAnimationDriver = value;
     }
 
+    public static boolean isAnimationLod() {
+        return animationLod;
+    }
+
+    public static void setAnimationLod(final boolean value) {
+        animationLod = value;
+    }
+
     /// Init config values = config specs
     public static void initConfigValues() {
         defaultAnimationDriver = DEFAULT_ANIMATION_DRIVER.get();
+        animationLod = ANIMATION_LOD.get();
     }
 
     /// Save config specs = config values
     public static void saveConfigValues() {
         setAndSave(DEFAULT_ANIMATION_DRIVER, defaultAnimationDriver);
+        setAndSave(ANIMATION_LOD, animationLod);
     }
 
     private static <T> void setAndSave(final ModConfigSpec.ConfigValue<T> configSpec, final T value) {

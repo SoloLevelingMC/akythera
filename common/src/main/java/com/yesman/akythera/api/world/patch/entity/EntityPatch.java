@@ -72,6 +72,9 @@ public class EntityPatch<T extends Entity> implements AnimatableObject, Componen
     /// Seconds of real time left before [#animationTimeScale] goes back to 1, infinite while it holds
     private float animationTimeScaleLeft = Float.POSITIVE_INFINITY;
 
+    /// Frame time gathered since the last [#beforeRender], see [#takeRenderTime(float, float)]
+    private float pendingRenderTime;
+
     // Constructor for hardcoded entity patches. Register components manually using
     // `BuiltInEventHooks.Entity.CONSTRUCTED` event in subclasses.
     public EntityPatch(@NonNull final T original) {
@@ -265,6 +268,23 @@ public class EntityPatch<T extends Entity> implements AnimatableObject, Componen
                 });
             }
         }
+    }
+
+    /// Gathers `deltaTime` seconds of frame time, and gives back all the time gathered once it reaches
+    /// `minInterval`, or a negative value while it has not.
+    ///
+    /// Lets a far entity be posed less often (level of detail): its components then advance by the whole
+    /// time it skipped, so its animations keep their pace and no notify is lost. 0 poses every frame.
+    @ClientOnly
+    public float takeRenderTime(final float deltaTime, final float minInterval) {
+        pendingRenderTime += deltaTime;
+
+        if (pendingRenderTime < minInterval) return -1.0F;
+
+        final float time = pendingRenderTime;
+        pendingRenderTime = 0.0F;
+
+        return time;
     }
 
     /// Scales the time this patch's animations advance by until changed again, see [#setAnimationTimeScale(float, float)].
