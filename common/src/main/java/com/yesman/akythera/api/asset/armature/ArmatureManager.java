@@ -78,8 +78,6 @@ public final class ArmatureManager extends DynamicAssetManager<@NonNull Armature
                     ArmatureLoader.getLoader(id, ComponentsFactory.getImpl().getResourceManager()).loadArmature(armatureConstructor)
                 );
             } catch (ResourceLoadingFailureException e) {
-                // leave null object for given identifier. live until the game is reloaded
-                INSTANCE.loadedObjectsRegistry.put(identifier, null);
                 throw e;
             }
         }

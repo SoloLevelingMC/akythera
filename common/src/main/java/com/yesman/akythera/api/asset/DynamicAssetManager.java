@@ -6,7 +6,6 @@ import net.minecraft.server.packs.resources.PreparableReloadListener;
 import org.jspecify.annotations.NullMarked;
 import org.jspecify.annotations.Nullable;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,7 +23,7 @@ import java.util.stream.Stream;
 @NullMarked
 public abstract class DynamicAssetManager<T> implements PreparableReloadListener {
     /// Nullable: a case where an exception was thrown while trying to read asset file
-    protected final Map<Identifier, @Nullable T> loadedObjectsRegistry = new HashMap<>();
+    protected final Map<Identifier, @Nullable T> loadedObjectsRegistry = new ConcurrentHashMap<>();
 
     /// Managed asset accessors that could be dereferenced to track available assets
     ///
