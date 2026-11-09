@@ -1,7 +1,7 @@
 package com.yesman.akythera.client.api.particle;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.yesman.akythera.api.data.serializable.RGBA;
 import com.yesman.akythera.core.blueprint.particle.SpriteParticleBlueprint;

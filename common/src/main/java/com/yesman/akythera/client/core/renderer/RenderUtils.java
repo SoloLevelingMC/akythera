@@ -1,17 +1,17 @@
 package com.yesman.akythera.client.core.renderer;
 
-import com.mojang.blaze3d.GpuFormat;
-import com.mojang.blaze3d.IndexType;
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
-import com.mojang.blaze3d.pipeline.ColorTargetState;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.GpuFormat;
+import com.mojang.renderpearl.api.pipeline.IndexType;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.pipeline.ColorTargetState;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.systems.CommandEncoder;
-import com.mojang.blaze3d.systems.RenderPass;
+import com.mojang.renderpearl.api.commands.CommandEncoder;
+import com.mojang.renderpearl.api.commands.RenderPass;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.ScissorState;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.MeshData;
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -41,6 +41,14 @@ import java.util.Optional;
 import java.util.OptionalDouble;
 
 public final class RenderUtils {
+    /// Where [#drawBuffers] draws instead of the main render target while it is set, so a caller can redirect every
+    /// immediate draw into its own target (26.3 removed `RenderSystem#outputColorTextureOverride`, which vanilla used
+    /// to do this). Null draws into the main target.
+    public static @Nullable GpuTextureView outputColorOverride;
+
+    /// The depth counterpart of [#outputColorOverride]. Null uses the main target's depth.
+    public static @Nullable GpuTextureView outputDepthOverride;
+
     /// The depth-only pass of [#drawBuffers]: `entity_translucent`'s shader and alpha cutout, writing depth and no
     /// color.
     private static final RenderPipeline FRONTMOST_DEPTH = RenderPipeline.builder(RenderPipelines.ENTITY_SNIPPET)
@@ -130,13 +138,13 @@ public final class RenderUtils {
         final int firstIndex,
         final int indexCount
     ) {
-        RenderTarget renderTarget = prepared.outputTarget().getRenderTarget();
-        GpuTextureView colorTexture = RenderSystem.outputColorTextureOverride != null
-            ? RenderSystem.outputColorTextureOverride
+        RenderTarget renderTarget = Minecraft.getInstance().gameRenderer.mainRenderTarget();
+        GpuTextureView colorTexture = outputColorOverride != null
+            ? outputColorOverride
             : renderTarget.getColorTextureView();
-        GpuTextureView depthTexture = renderTarget.useDepth
-            ? (RenderSystem.outputDepthTextureOverride != null
-                ? RenderSystem.outputDepthTextureOverride
+        GpuTextureView depthTexture = renderTarget.hasDepth()
+            ? (outputDepthOverride != null
+                ? outputDepthOverride
                 : renderTarget.getDepthTextureView())
             : null;
 
@@ -149,7 +157,7 @@ public final class RenderUtils {
                 OptionalDouble.empty()
             )
         ) {
-            renderPass.setPipeline(pipeline);
+            renderPass.setPipeline(RenderSystem.getCompiledPipeline(pipeline));
 
             ScissorState scissorState = prepared.scissorState();
 
@@ -162,7 +170,7 @@ public final class RenderUtils {
             renderPass.setVertexBuffer(0, vertices);
 
             for (PreparedRenderType.Texture texture : prepared.textures()) {
-                renderPass.bindTexture(texture.name(), texture.textureView(), texture.sampler());
+                renderPass.setUniform(texture.name(), texture.textureView(), texture.sampler());
             }
 
             renderPass.setIndexBuffer(indexBuffer, indexType);

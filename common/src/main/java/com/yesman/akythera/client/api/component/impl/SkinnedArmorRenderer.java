@@ -21,7 +21,6 @@ import com.yesman.akythera.core.util.helper.Matrix4fUtils;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.Model;
-import net.minecraft.client.renderer.Sheets;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.LivingEntityRenderer;
@@ -32,10 +31,11 @@ import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.UvMapping;
+import net.minecraft.client.resources.palette.PalettedTextureManager;
 import net.minecraft.client.resources.model.EquipmentClientInfo;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.data.AtlasIds;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.EquipmentSlot;
@@ -244,7 +244,13 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
 
         if (layers.isEmpty()) return;
 
+        // As vanilla's EquipmentLayerRenderer does since 26.3: the enchantment glint is a shader of the first layer's
+        // render type, or an extra draw over the trim when the piece has one
         boolean foil = wornStack.hasFoil();
+        ArmorTrim trim = wornStack.get(DataComponents.TRIM);
+        Equippable equippable = wornStack.get(DataComponents.EQUIPPABLE);
+        boolean hasTrim = trim != null && equippable != null && wornLayerType != EquipmentClientInfo.LayerType.HUMANOID_BABY;
+        boolean shaderGlint = foil && !hasTrim;
 
         for (int layerIndex = 0; layerIndex < layers.size(); layerIndex++) {
             EquipmentClientInfo.Layer layer = layers.get(layerIndex);
@@ -252,39 +258,79 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
 
             if (color == 0) continue;
 
+            Identifier layerTexture = ClientComponentsFactory.getImpl().getArmorTexture(
+                wornStack, wornLayerType, layer, layer.getTextureLocation(wornLayerType)
+            );
+
             submitWorn(
                 poseStack, submitNodeCollector, lightCoords, state,
-                RenderTypes.armorCutoutNoCull(ClientComponentsFactory.getImpl().getArmorTexture(
-                    wornStack, wornLayerType, layer, layer.getTextureLocation(wornLayerType)
-                )),
+                shaderGlint ? RenderTypes.armorCutoutNoCullGlint(layerTexture) : RenderTypes.armorCutoutNoCull(layerTexture),
                 color, null
             );
 
-            if (foil) {
-                submitWorn(poseStack, submitNodeCollector, lightCoords, state, RenderTypes.armorEntityGlint(), color, null);
-            }
-
-            foil = false;
+            shaderGlint = false;
         }
 
-        ArmorTrim trim = wornStack.get(DataComponents.TRIM);
-        Equippable equippable = wornStack.get(DataComponents.EQUIPPABLE);
-
-        if (trim != null && equippable != null && wornLayerType != EquipmentClientInfo.LayerType.HUMANOID_BABY) {
-            TextureAtlasSprite sprite = Minecraft.getInstance().getAtlasManager()
-                .getAtlasOrThrow(AtlasIds.ARMOR_TRIMS)
-                .getSprite(trim.layerAssetId(wornLayerType.trimAssetPrefix(), equippable.assetId().orElseThrow()));
+        if (hasTrim) {
+            PalettedTextureManager.Handle trimTexture = trimTexture(trim, wornLayerType, equippable);
 
             submitWorn(
                 poseStack, submitNodeCollector, lightCoords, state,
-                Sheets.armorTrimsSheet(trim.pattern().value().decal()), -1, sprite
+                RenderTypes.armorTrim(trimTexture.textureLocation(), trim.pattern().value().decal()), -1, trimTexture
             );
+
+            if (foil) {
+                submitWorn(poseStack, submitNodeCollector, lightCoords, state, RenderTypes.trimmedArmorGlint(), -1, null);
+            }
         }
     }
 
-    /// Draws [#wornMesh] once through `renderType`, its UVs laid into `sprite` when one is given.
+    /// The texture `trim` is drawn with on a piece of `equippable`, resolved as vanilla's `EquipmentLayerRenderer`
+    /// does: the trim's pattern painted with its material's palette, unless the piece's equipment asset overrides the
+    /// pattern or the palette.
+    private static PalettedTextureManager.Handle trimTexture(
+        final ArmorTrim trim, final EquipmentClientInfo.LayerType layerType, final Equippable equippable
+    ) {
+        EquipmentClientInfo equipmentInfo = Minecraft.getInstance().getEntityRenderDispatcher().equipmentAssets
+            .get(equippable.assetId().orElseThrow());
+        Identifier textureId = trim.pattern().value().assetId();
+        Identifier paletteId = trim.material().value().paletteId();
+
+        for (EquipmentClientInfo.TrimOverride override : equipmentInfo.trimOverrides()) {
+            if (override.predicate().matches(trim)) {
+                textureId = override.textureId().orElse(textureId);
+                paletteId = override.paletteId().orElse(null);
+                break;
+            }
+        }
+
+        Identifier baseTexture = textureId.withPath(path -> layerType.trimAssetPrefix() + "/" + path);
+
+        if (paletteId != null) return Minecraft.getInstance().getPalettedTextureManager().getOrPrepare(baseTexture, paletteId);
+
+        Identifier textureLocation = baseTexture.withPath(path -> "textures/" + path + ".png");
+
+        return new PalettedTextureManager.Handle() {
+            @Override
+            public Identifier textureLocation() {
+                return textureLocation;
+            }
+
+            @Override
+            public float getU(final float offset) {
+                return offset;
+            }
+
+            @Override
+            public float getV(final float offset) {
+                return offset;
+            }
+        };
+    }
+
+    /// Draws [#wornMesh] once through `renderType`, its UVs mapped through `uvMapping` when one is given.
     ///
-    /// Skinned on the CPU into the staged buffer (no compute shaders in this fork), through `sprite`
+    /// Skinned on the CPU into the staged buffer (no compute shaders in this fork), through `uvMapping`
     /// when one is given.
     private void submitWorn(
         final PoseStack poseStack,
@@ -293,7 +339,7 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
         final LivingEntityRenderState state,
         final RenderType renderType,
         final int color,
-        final @Nullable TextureAtlasSprite sprite
+        final @Nullable UvMapping uvMapping
     ) {
         SkeletalMesh mesh = wornMesh;
         Pose animationPose = armature == null ? null : armature.getCachedPose();
@@ -320,7 +366,7 @@ public final class SkinnedArmorRenderer implements RenderableComponent<LivingEnt
 
                 mesh.drawPosed(
                     skinningStack,
-                    sprite == null ? buffer : sprite.wrap(buffer),
+                    uvMapping == null ? buffer : uvMapping.wrap(buffer),
                     Mesh.DrawingFunction.trianglesAsQuads(Mesh.DrawingFunction.NEW_ENTITY),
                     lightCoords,
                     ARGB.redFloat(color),

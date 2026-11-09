@@ -1,6 +1,6 @@
 package com.yesman.akythera.mixin.client;
 
-import com.mojang.blaze3d.systems.GpuDevice;
+import com.mojang.renderpearl.api.device.GpuDevice;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.yesman.akythera.client.core.AkytheraClient;
 import org.spongepowered.asm.mixin.Mixin;
@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /// are created (see `GlDevice.<init>`), which both mod loaders' client entry points run before.
 @Mixin(RenderSystem.class)
 public abstract class MixinRenderSystem {
-    @Inject(at = @At("TAIL"), method = "initRenderer(Lcom/mojang/blaze3d/systems/GpuDevice;)V")
+    @Inject(at = @At("TAIL"), method = "initRenderer(Lcom/mojang/renderpearl/api/device/GpuDevice;)V")
     private static void akythera$inspectDeviceSpec(GpuDevice device, CallbackInfo callbackInfo) {
         AkytheraClient.onRendererInitialized();
     }

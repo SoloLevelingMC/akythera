@@ -8,7 +8,6 @@
     "client.MixinClientConfigurationPacketListenerImpl",
     "client.MixinClientLevel",
     "client.MixinEntityRenderDispatcher",
-    "client.MixinGpuDevice",
     "client.MixinGuiGraphicsExtractor",
     "client.MixinHud",
     "client.MixinKeyMapping",

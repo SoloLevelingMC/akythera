@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.yesman.akythera.api.input.InputAction;
 import com.yesman.akythera.core.util.ClientOnly;
 import net.minecraft.client.KeyMapping;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.List;
 
@@ -15,9 +14,9 @@ public final class AkytheraKeyMappings {
 
     // Unbound by default in this fork: Solo Leveling binds R (guard) and V (spec ability) to its own actions and does
     // not use Akythera's input actions. Players can still bind these in the controls screen.
-    public static final KeyMapping PRIMARY_ABILITY = ability("key.akythera.primary_ability", GLFW.GLFW_KEY_UNKNOWN);
-    public static final KeyMapping SECONDARY_ABILITY = ability("key.akythera.secondary_ability", GLFW.GLFW_KEY_UNKNOWN);
-    public static final KeyMapping ULTIMATE_ABILITY = ability("key.akythera.ultimate_ability", GLFW.GLFW_KEY_UNKNOWN);
+    public static final KeyMapping PRIMARY_ABILITY = ability("key.akythera.primary_ability", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping SECONDARY_ABILITY = ability("key.akythera.secondary_ability", InputConstants.UNKNOWN.getValue());
+    public static final KeyMapping ULTIMATE_ABILITY = ability("key.akythera.ultimate_ability", InputConstants.UNKNOWN.getValue());
 
     private AkytheraKeyMappings() {}
 
@@ -32,6 +31,6 @@ public final class AkytheraKeyMappings {
     }
 
     private static KeyMapping ability(final String name, final int key) {
-        return new KeyMapping(name, InputConstants.Type.KEYSYM, key, KeyMapping.Category.GAMEPLAY);
+        return new KeyMapping(name, InputConstants.Type.KEYBOARD, key, KeyMapping.Category.GAMEPLAY);
     }
 }

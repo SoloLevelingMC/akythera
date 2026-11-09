@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.yesman.akythera.client.api.gui.common.AnchoredWidget;
 import com.yesman.akythera.client.api.gui.common.DataBoundWidget;
@@ -337,7 +338,7 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.@NonNu
             return false;
         }
 
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             for (WidgetEntry entry : children()) {
                 if (entry.isOverGrip(event.x(), event.y())) {
                     resizingEntry = entry;
@@ -498,7 +499,7 @@ public class WidgetTable extends ContainerObjectSelectionList<WidgetTable.@NonNu
         @Override
         public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
             if (super.mouseClicked(event, doubleClick)) return true;
-            if (onPressed == null || event.button() != 0) return false;
+            if (onPressed == null || event.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
             pressedEntry = this;
             onPressed.run();

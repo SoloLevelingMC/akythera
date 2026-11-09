@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.yesman.akythera.client.api.gui.common.AnchoredWidget;
 import com.yesman.akythera.client.api.gui.common.PlaceholderExpressionWidget;
 import com.yesman.akythera.client.api.gui.common.PressableWidget;
@@ -447,7 +448,7 @@ public class ComboBox<T> extends AbstractWidget
         @Override
         public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
             // The frame grip lies just outside the frame, where a press would otherwise dismiss the modal.
-            if (event.button() == 0 && resizer.mousePressed(event.x(), event.y())) {
+            if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && resizer.mousePressed(event.x(), event.y())) {
                 return true;
             }
 
@@ -702,7 +703,7 @@ public class ComboBox<T> extends AbstractWidget
 
                 @Override
                 public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
-                    if (event.button() != 0 || message != null) return false;
+                    if (event.button() != InputConstants.MOUSE_BUTTON_LEFT || message != null) return false;
 
                     pick();
 

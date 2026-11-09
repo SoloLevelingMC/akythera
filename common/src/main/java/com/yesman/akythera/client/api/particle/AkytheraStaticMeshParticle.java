@@ -1,6 +1,6 @@
 package com.yesman.akythera.client.api.particle;
 
-import com.mojang.blaze3d.PrimitiveTopology;
+import com.mojang.renderpearl.api.pipeline.PrimitiveTopology;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.ByteBufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -159,7 +159,7 @@ public class AkytheraStaticMeshParticle extends Particle implements AkytheraMesh
         Vec3 drawnScale = oScale.lerp(scale, partialTick);
 
         poseStack.translate(Mth.lerp(partialTick, xo, x) - origin.x, Mth.lerp(partialTick, yo, y) - origin.y, Mth.lerp(partialTick, zo, z) - origin.z);
-        poseStack.mulPose(new Quaternionf(oRotation).slerp(rotation, partialTick));
+        poseStack.rotate(new Quaternionf(oRotation).slerp(rotation, partialTick));
         poseStack.scale((float)drawnScale.x, (float)drawnScale.y, (float)drawnScale.z);
     }
 

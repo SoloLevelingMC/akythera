@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.yesman.akythera.client.api.gui.common.AnchoredWidget;
 import com.yesman.akythera.client.api.gui.common.DataBoundWidget;
@@ -154,7 +155,7 @@ public class DragValueBox<T extends Number> extends AbstractWidget
     @Override
     public boolean mouseClicked(@NonNull MouseButtonEvent event, boolean doubleClick) {
         if (editBox.isFocused()) return editBox.mouseClicked(event, doubleClick);
-        if (!isActive() || event.button() != 0 || !isMouseOver(event.x(), event.y())) return false;
+        if (!isActive() || event.button() != InputConstants.MOUSE_BUTTON_LEFT || !isMouseOver(event.x(), event.y())) return false;
 
         pressed = true;
         scrubbing = false;
@@ -167,7 +168,7 @@ public class DragValueBox<T extends Number> extends AbstractWidget
     @Override
     public boolean mouseDragged(@NonNull MouseButtonEvent event, double dx, double dy) {
         if (editBox.isFocused()) return editBox.mouseDragged(event, dx, dy);
-        if (!pressed || event.button() != 0) return false;
+        if (!pressed || event.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
         if (!scrubbing) {
             if (Math.abs(event.x() - pressX) < DRAG_THRESHOLD) return true;
@@ -190,7 +191,7 @@ public class DragValueBox<T extends Number> extends AbstractWidget
     @Override
     public boolean mouseReleased(@NonNull MouseButtonEvent event) {
         if (editBox.isFocused()) return editBox.mouseReleased(event);
-        if (!pressed || event.button() != 0) return false;
+        if (!pressed || event.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
         pressed = false;
 

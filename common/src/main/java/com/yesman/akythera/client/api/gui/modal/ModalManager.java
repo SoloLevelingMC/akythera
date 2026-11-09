@@ -14,7 +14,6 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
@@ -244,7 +243,7 @@ public final class ModalManager {
     private boolean isRightButtonDown() {
         Minecraft minecraft = Minecraft.getInstance();
 
-        return GLFW.glfwGetMouseButton(minecraft.getWindow().handle(), GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS;
+        return minecraft.mouseHandler.isRightPressed();
     }
 
     /// All open modals in render order (bottom-most first, topmost last).

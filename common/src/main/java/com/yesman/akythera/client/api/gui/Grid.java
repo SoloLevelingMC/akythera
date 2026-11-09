@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.yesman.akythera.client.api.gui.common.AnchoredWidget;
 import com.yesman.akythera.core.reflection.ScriptType;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -169,7 +170,7 @@ public class Grid extends AkytheraWidget {
             if (widget.mouseClicked(event, doubleClick) && widget.shouldTakeFocusAfterInteraction()) {
                 setFocused(widget);
 
-                if (event.button() == 0) {
+                if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
                     setDragging(true);
                 }
             }

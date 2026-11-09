@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.yesman.akythera.api.data.serializable.LocalizedMessage;
 import com.yesman.akythera.client.api.gui.common.AnchoredWidget;
 import com.yesman.akythera.client.api.gui.common.PlaceholderExpressionWidget;
@@ -21,7 +22,6 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.Comparator;
 import java.util.List;
@@ -391,7 +391,7 @@ public class ClampedNumberBox<T extends Number> extends AbstractContainerWidget 
             if (guieventlistener.mouseClicked(event, doubleClick)) {
                 setFocused(guieventlistener);
 
-                if (event.button() == 0) {
+                if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
                     setDragging(true);
                 }
 
@@ -425,7 +425,7 @@ public class ClampedNumberBox<T extends Number> extends AbstractContainerWidget 
 
     @Override
     public boolean keyPressed(@NonNull KeyEvent event) {
-        if ((event.key() == GLFW.GLFW_KEY_ENTER || event.key() == GLFW.GLFW_KEY_KP_ENTER) && getFocused() == editBox) {
+        if ((event.key() == InputConstants.KEY_RETURN || event.key() == InputConstants.KEY_NUMPADENTER) && getFocused() == editBox) {
             editBox.setFocused(false);
             
             return true;

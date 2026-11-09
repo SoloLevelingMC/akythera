@@ -13,7 +13,7 @@ import io.netty.buffer.ByteBuf;
 import net.minecraft.core.Holder;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.resources.RegistryFileCodec;
+import net.minecraft.core.registries.codec.RegistryFileCodec;
 import net.minecraft.resources.ResourceKey;
 import org.jspecify.annotations.NonNull;
 
@@ -83,8 +83,8 @@ public interface PlayableAnimation {
     private static MapCodec<? extends Holder<? extends @NonNull PlayableAnimation>> codecOf(final String tag) {
         return (
             switch (tag) {
-                case "montage" -> RegistryFileCodec.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, AnimationMontage.CODEC).fieldOf("montage");
-                case "sequence" -> RegistryFileCodec.create(AkytheraRegistries.DataPack.ANIM_SEQUENCE_KEY, AnimationSequence.CODEC).fieldOf("sequence");
+                case "montage" -> RegistryFileCodec.create(AkytheraRegistries.DataPack.ANIM_MONTAGE_KEY, AnimationMontage.CODEC, true).fieldOf("montage");
+                case "sequence" -> RegistryFileCodec.create(AkytheraRegistries.DataPack.ANIM_SEQUENCE_KEY, AnimationSequence.CODEC, true).fieldOf("sequence");
                 default -> throw new IllegalArgumentException("Unknown PlayableAnimation type: '" + tag + "' (expected 'montage' or 'sequence')");
             }
         ).stable();

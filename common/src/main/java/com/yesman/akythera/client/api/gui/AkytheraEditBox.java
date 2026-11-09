@@ -1,5 +1,6 @@
 package com.yesman.akythera.client.api.gui;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.yesman.akythera.client.api.gui.common.*;
 import com.yesman.akythera.core.reflection.ScriptFunction;
 import com.yesman.akythera.core.reflection.ScriptType;
@@ -18,7 +19,6 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.StringUtil;
 import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
-import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -360,7 +360,7 @@ public class AkytheraEditBox<T> extends AbstractWidget
     public boolean mouseDragged(@NonNull MouseButtonEvent event, double dx, double dy) {
         // A drag moves the cursor — the selection's moving end — away from the anchor the press set,
         // scrolling the view toward it so the offset follows the drag direction.
-        if (event.button() != 0) return super.mouseDragged(event, dx, dy);
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseDragged(event, dx, dy);
 
         int innerLeft = getX() + TEXT_PADDING;
         int innerRight = getX() + getWidth() - TEXT_PADDING;
@@ -432,8 +432,8 @@ public class AkytheraEditBox<T> extends AbstractWidget
     public boolean keyPressed(@NonNull KeyEvent event) {
         if (!editable || !isFocused()) return false;
 
-        boolean ctrl = (event.modifiers() & GLFW.GLFW_MOD_CONTROL) != 0;
-        boolean shift = (event.modifiers() & GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean ctrl = (event.modifiers() & InputConstants.MOD_CONTROL) != 0;
+        boolean shift = (event.modifiers() & InputConstants.MOD_SHIFT) != 0;
 
         if (event.isCopy()) {
             copyRange(selectionStart(), selectionEnd());
@@ -456,7 +456,7 @@ public class AkytheraEditBox<T> extends AbstractWidget
         }
 
         switch (event.key()) {
-            case GLFW.GLFW_KEY_BACKSPACE -> {
+            case InputConstants.KEY_BACKSPACE -> {
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (ctrl) {
@@ -471,7 +471,7 @@ public class AkytheraEditBox<T> extends AbstractWidget
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_DELETE -> {
+            case InputConstants.KEY_DELETE -> {
                 if (hasSelection()) {
                     deleteSelection();
                 } else if (ctrl) {
@@ -485,7 +485,7 @@ public class AkytheraEditBox<T> extends AbstractWidget
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_LEFT -> {
+            case InputConstants.KEY_LEFT -> {
                 // An unmodified arrow over a selection collapses it onto the near edge rather than
                 // stepping the caret.
                 if (hasSelection() && !shift && !ctrl) {
@@ -495,7 +495,7 @@ public class AkytheraEditBox<T> extends AbstractWidget
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_RIGHT -> {
+            case InputConstants.KEY_RIGHT -> {
                 if (hasSelection() && !shift && !ctrl) {
                     moveCursor(selectionEnd(), false);
                 } else {
@@ -503,15 +503,15 @@ public class AkytheraEditBox<T> extends AbstractWidget
                 }
                 return true;
             }
-            case GLFW.GLFW_KEY_HOME -> {
+            case InputConstants.KEY_HOME -> {
                 moveCursor(0, shift);
                 return true;
             }
-            case GLFW.GLFW_KEY_END -> {
+            case InputConstants.KEY_END -> {
                 moveCursor(text.length(), shift);
                 return true;
             }
-            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> {
+            case InputConstants.KEY_RETURN, InputConstants.KEY_NUMPADENTER -> {
                 // Commit: unfocus
                 setFocused(false);
                 return true;

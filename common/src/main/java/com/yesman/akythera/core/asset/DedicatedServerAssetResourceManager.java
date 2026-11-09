@@ -15,7 +15,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 /// Reads assets on a dedicated server, where the game mounts the data tree only.
@@ -102,13 +101,13 @@ public final class DedicatedServerAssetResourceManager implements ResourceManage
     }
 
     @Override
-    public Map<Identifier, Resource> listResources(final String path, final Predicate<Identifier> predicate) {
-        return toAssetPaths(delegate().listResources(ASSET_DIRECTORY + path, id -> predicate.test(toAssetPath(id))));
+    public Map<Identifier, Resource> listResources(final String path, final ResourceManager.Selector predicate) {
+        return toAssetPaths(delegate().listResources(ASSET_DIRECTORY + path, id -> predicate.isIncluded(toAssetPath(id))));
     }
 
     @Override
-    public Map<Identifier, List<Resource>> listResourceStacks(final String path, final Predicate<Identifier> predicate) {
-        return toAssetPaths(delegate().listResourceStacks(ASSET_DIRECTORY + path, id -> predicate.test(toAssetPath(id))));
+    public Map<Identifier, List<Resource>> listResourceStacks(final String path, final ResourceManager.Selector predicate) {
+        return toAssetPaths(delegate().listResourceStacks(ASSET_DIRECTORY + path, id -> predicate.isIncluded(toAssetPath(id))));
     }
 
     @Override

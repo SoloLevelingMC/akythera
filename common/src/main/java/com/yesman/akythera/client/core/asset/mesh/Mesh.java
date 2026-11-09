@@ -3,7 +3,7 @@ package com.yesman.akythera.client.core.asset.mesh;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.renderpearl.api.vertex.VertexFormat;
 import com.yesman.akythera.client.core.asset.loader.MeshLoader;
 import com.yesman.akythera.client.core.asset.loader.VertexBuilder;
 import net.minecraft.client.renderer.SubmitNodeCollector;

@@ -65,8 +65,8 @@ public final class CameraComponent implements Model3DViewerComponent {
 
         PoseStack ps = new PoseStack();
         ps.translate(0.0F, 0.0F, (float) zoom);
-        ps.mulPose(Axis.XP.rotationDegrees(xRot));
-        ps.mulPose(Axis.YP.rotationDegrees(yRot));
+        ps.rotate(Axis.XP.rotationDegrees(xRot));
+        ps.rotate(Axis.YP.rotationDegrees(yRot));
         ps.translate(-focus.x, -focus.y, -focus.z);
 
         return ps;
@@ -95,12 +95,12 @@ public final class CameraComponent implements Model3DViewerComponent {
 
     public void handleMouseDrag(double dx, double dy, int button) {
         if (!controllable) return;
-        if (button == 0) {
+        if (button == InputConstants.MOUSE_BUTTON_LEFT) {
             xRot = Mth.clamp(xRot + (float) (dy * 2.5), -90.0F, 90.0F);
             yRot += (float) (dx * 2.5F);
             targetXRot = xRot;
             targetYRot = yRot;
-        } else if (button == 1 || button == 2) {
+        } else if (button == InputConstants.MOUSE_BUTTON_RIGHT || button == InputConstants.MOUSE_BUTTON_MIDDLE) {
             // Rows of the view rotation: the camera's right and up in world space.
             Matrix3f rotation = new Matrix3f().rotationX(xRot * Mth.DEG_TO_RAD).rotateY(yRot * Mth.DEG_TO_RAD);
             float scale = 0.015F * (float) -zoom;

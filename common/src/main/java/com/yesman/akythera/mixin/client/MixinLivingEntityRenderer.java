@@ -18,10 +18,9 @@ import net.minecraft.client.renderer.entity.layers.ItemInHandLayer;
 import net.minecraft.client.renderer.entity.layers.RenderLayer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
-import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.rendertype.RenderType;
-import net.minecraft.client.renderer.texture.TextureAtlasSprite;
+import net.minecraft.client.renderer.texture.UvMapping;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
@@ -111,7 +110,7 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
         final LivingEntityRenderer<T, S, M> renderer, final S state, final PoseStack poseStack, final float bodyRot, final float entityScale
     ) {
         if (((LivingEntityRenderStateAccessor)state).akythera$isArmaturePlaced()) {
-            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F - bodyRot));
+            poseStack.rotate(Axis.YP.rotationDegrees(180.0F - bodyRot));
         } else {
             setupRotations(state, poseStack, bodyRot, entityScale);
         }
@@ -147,7 +146,7 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
         method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
         at = @At(
             value = "INVOKE",
-            target = "Lnet/minecraft/client/renderer/SubmitNodeCollector;submitModel(Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IIILnet/minecraft/client/renderer/texture/TextureAtlasSprite;ILnet/minecraft/client/renderer/feature/ModelFeatureRenderer$CrumblingOverlay;)V"
+            target = "Lnet/minecraft/client/renderer/SubmitNodeCollector;submitModel(Lnet/minecraft/client/model/Model;Ljava/lang/Object;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/rendertype/RenderType;IIILnet/minecraft/client/renderer/texture/UvMapping;I)V"
         )
     )
     private void akythera$submitRenderableComponents(
@@ -159,9 +158,8 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
         final int lightCoords,
         final int overlayCoords,
         final int tintedColor,
-        final @Nullable TextureAtlasSprite sprite,
-        final int outlineColor,
-        final ModelFeatureRenderer.@Nullable CrumblingOverlay crumblingOverlay
+        final @Nullable UvMapping uvMapping,
+        final int outlineColor
     ) {
         if (renderState instanceof LivingEntityRenderState livingState) {
             LivingEntityRenderStateAccessor stateAccessor = (LivingEntityRenderStateAccessor) livingState;
@@ -175,7 +173,7 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
 
                 if (!vanillaModelHidden) {
                     collector.submitModel(
-                        model, renderState, poseStack, renderType, lightCoords, overlayCoords, tintedColor, sprite, outlineColor, crumblingOverlay
+                        model, renderState, poseStack, renderType, lightCoords, overlayCoords, tintedColor, uvMapping, outlineColor
                     );
                 }
 
@@ -187,7 +185,7 @@ public abstract class MixinLivingEntityRenderer<T extends LivingEntity, S extend
         }
 
         collector.submitModel(
-            model, renderState, poseStack, renderType, lightCoords, overlayCoords, tintedColor, sprite, outlineColor, crumblingOverlay
+            model, renderState, poseStack, renderType, lightCoords, overlayCoords, tintedColor, uvMapping, outlineColor
         );
     }
 

@@ -1,6 +1,6 @@
 package com.yesman.akythera.client.api.lifecycle;
 
-import com.mojang.blaze3d.systems.DeviceInfo;
+import com.mojang.renderpearl.api.device.DeviceInfo;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.yesman.akythera.api.lifecycle.ComponentsFactory;

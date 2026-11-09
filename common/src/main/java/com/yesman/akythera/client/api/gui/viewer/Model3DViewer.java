@@ -1,13 +1,14 @@
 package com.yesman.akythera.client.api.gui.viewer;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.pipeline.MainTarget;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.textures.AddressMode;
-import com.mojang.blaze3d.textures.FilterMode;
-import com.mojang.blaze3d.textures.GpuSampler;
-import com.mojang.blaze3d.textures.GpuTexture;
-import com.mojang.blaze3d.textures.GpuTextureView;
+import com.mojang.renderpearl.api.textures.AddressMode;
+import com.mojang.renderpearl.api.textures.FilterMode;
+import com.mojang.renderpearl.api.textures.GpuSampler;
+import com.mojang.renderpearl.api.textures.GpuTexture;
+import com.mojang.renderpearl.api.textures.GpuTextureView;
 import com.mojang.blaze3d.vertex.*;
 import com.yesman.akythera.api.asset.AssetAccessor;
 import com.yesman.akythera.client.api.gui.CloseableWidget;
@@ -375,12 +376,12 @@ public final class Model3DViewer extends AbstractWidget
 
             // Save render state
             RenderSystem.backupProjectionMatrix();
-            GpuTextureView savedColorOverride = RenderSystem.outputColorTextureOverride;
-            GpuTextureView savedDepthOverride = RenderSystem.outputDepthTextureOverride;
+            GpuTextureView savedColorOverride = RenderUtils.outputColorOverride;
+            GpuTextureView savedDepthOverride = RenderUtils.outputDepthOverride;
 
             // Redirect all RenderType draws into previewTarget
-            RenderSystem.outputColorTextureOverride = previewTarget.getColorTextureView();
-            RenderSystem.outputDepthTextureOverride = previewTarget.getDepthTextureView();
+            RenderUtils.outputColorOverride = previewTarget.getColorTextureView();
+            RenderUtils.outputDepthOverride = previewTarget.getDepthTextureView();
 
             Matrix4f projection = camera.buildProjection(previewTarget.width, previewTarget.height);
 
@@ -417,8 +418,8 @@ public final class Model3DViewer extends AbstractWidget
             // Restore render state
             modelViewStack.popMatrix();
 
-            RenderSystem.outputColorTextureOverride = savedColorOverride;
-            RenderSystem.outputDepthTextureOverride = savedDepthOverride;
+            RenderUtils.outputColorOverride = savedColorOverride;
+            RenderUtils.outputDepthOverride = savedDepthOverride;
             RenderSystem.restoreProjectionMatrix();
 
             // Blit previewTarget to the widget area (v-flipped: GL render targets have bottom-up Y)
@@ -466,7 +467,7 @@ public final class Model3DViewer extends AbstractWidget
     @Override
     protected boolean isValidClickButton(@NonNull MouseButtonInfo buttonInfo) {
         int button = buttonInfo.button();
-        return button == 0 || button == 1 || button == 2;
+        return button == InputConstants.MOUSE_BUTTON_LEFT || button == InputConstants.MOUSE_BUTTON_RIGHT || button == InputConstants.MOUSE_BUTTON_MIDDLE;
     }
 
     @Override
@@ -477,7 +478,7 @@ public final class Model3DViewer extends AbstractWidget
             if (widget.mouseClicked(event, doubleClick)) return true;
         }
 
-        if (event.button() == 1) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
             // Right-press during a drag aborts it. The menu is not offered — the gesture in flight
             // is what the press is answering.
             if (dragTarget != null) {
@@ -502,7 +503,7 @@ public final class Model3DViewer extends AbstractWidget
         }
 
         // Middle press only opens a camera pan; the drag itself arrives through mouseDragged.
-        if (event.button() != 0) return true;
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) return true;
 
         // The commit lands on the press, with the button still down — dragCancelled keeps the rest of
         // it off the camera until it comes up.
@@ -533,7 +534,7 @@ public final class Model3DViewer extends AbstractWidget
     public boolean mouseDragged(@NonNull MouseButtonEvent event, double dx, double dy) {
         if (dragCancelled) return true;
 
-        if (dragTarget != null && event.button() == 0) {
+        if (dragTarget != null && event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             dragTarget.onMouseDragged(this, event, dx, dy);
             runPendingStructureChanges();
             return true;
@@ -550,7 +551,7 @@ public final class Model3DViewer extends AbstractWidget
 
     @Override
     public boolean mouseReleased(@NonNull MouseButtonEvent event) {
-        if (event.button() == 0) dragCancelled = false;
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) dragCancelled = false;
 
         // Position-gated: AbstractWidget#mouseReleased answers true for any valid button wherever the
         // cursor is, which would swallow every release and leave [#dragTarget] latched.
